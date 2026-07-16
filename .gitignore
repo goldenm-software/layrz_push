@@ -34,3 +34,7 @@ migrate_working_dir/
 
 # Go tool binaries
 tools/push-secrets/push-secrets
+tools/push-sender/push-sender
+
+# Firebase service account keys
+service-account.json

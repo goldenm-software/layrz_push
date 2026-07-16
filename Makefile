@@ -23,3 +23,7 @@ run:
 .PHONY: tui
 tui:
 	cd tools/push-secrets && go run .
+
+.PHONY: send
+send:
+	cd tools/push-sender && go run .
