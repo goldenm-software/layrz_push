@@ -29,6 +29,8 @@ Platform communication uses **Pigeon** (`pigeon: ^26.3.3`), following the `layrz
   UserDefaults for the rest).
 - `tools/push-secrets/` — Go TUI (charmbracelet huh) that converts a pasted
   `google-services.json` / `GoogleService-Info.plist` into `example/assets/secrets.json`.
+- `tools/push-sender/` — Go TUI that sends test pushes to a topic via the FCM HTTP v1 API,
+  authenticated with a service account key (`service-account.json`, gitignored).
 
 ## API semantics (do not change without asking)
 
