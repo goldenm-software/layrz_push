@@ -48,7 +48,7 @@ Platform communication uses **Pigeon** (`pigeon: ^26.3.3`), following the `layrz
 
 - `make pigeon` — regenerate bindings after editing `pigeon/layrz_push.dart`
 - `make test` / `flutter analyze` — must both be clean before finishing
-- `make android` / `make ios` / `make run` — run the example (`$(MAKE) -C example ...`)
+- `make run` — run the example (`$(MAKE) -C example run`)
 - `make tui` — run the secrets generator
 - `cd example && flutter build apk --debug` — proves the Kotlin side compiles
 - `cd tools/push-secrets && go vet ./... && go test ./...` — for the Go tool
