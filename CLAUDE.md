@@ -82,3 +82,5 @@ be absent). Generate it with `make tui`.
 - Work happens on `development`; `main` is the release branch (PR `development` → `main`).
 - Follow the workspace commit conventions: split commits by logical category, stage files
   explicitly by name.
+- **Never include a `Claude-Session:` trailer in commit messages** — this repo is public and
+  Kenny does not want session links in the history. `Co-Authored-By` is fine.
