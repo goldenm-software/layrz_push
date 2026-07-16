@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "VS Code Connected Device",
+      "request": "launch",
+      "cwd": "example",
+      "type": "dart"
+    },
+    {
+      "name": "push-secrets TUI",
+      "request": "launch",
+      "type": "go",
+      "mode": "auto",
+      "program": "${workspaceFolder}/tools/push-secrets",
+      "console": "integratedTerminal"
+    }
+  ]
+}
