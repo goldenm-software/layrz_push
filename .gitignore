@@ -38,3 +38,4 @@ tools/push-sender/push-sender
 
 # Firebase service account keys
 service-account.json
+credentials.json
