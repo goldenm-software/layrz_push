@@ -20,14 +20,6 @@ clean:
 run:
 	$(MAKE) -C example run
 
-.PHONY: android
-android:
-	$(MAKE) -C example android
-
-.PHONY: ios
-ios:
-	$(MAKE) -C example ios
-
 .PHONY: tui
 tui:
 	cd tools/push-secrets && go run .
