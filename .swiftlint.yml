@@ -1,0 +1,30 @@
+# SwiftLint configuration for layrz_push Flutter plugin.
+#
+# This file configures SwiftLint for CI linting of hand-written Swift code only.
+# The CI action runs `swiftlint lint --strict --force-exclude <lint-directory>`
+# from the repo root and prefers this file when present.
+#
+# Excluded paths:
+# - LayrzPush.g.swift: pigeon-generated code (never linted)
+# - example/ios/Pods: CocoaPods dependencies
+# - example/ios/.symlinks: Flutter framework symlinks
+# - .dart_tool: Flutter tooling
+# - build: Flutter build output
+
+# Exclude pigeon-generated and build artefacts from linting
+excluded:
+  - ios/layrz_push/Sources/layrz_push/LayrzPush.g.swift
+  - example/ios/Pods
+  - example/ios/.symlinks
+  - .dart_tool
+  - build
+
+# Line length: relaxed for doc comments and long type signatures
+line_length:
+  warning: 140
+  error: 200
+
+# Disable trailing_comma: the codebase uses trailing commas in multiline
+# collections (Dart/Kotlin style), consistent with the plugin architecture
+disabled_rules:
+  - trailing_comma
