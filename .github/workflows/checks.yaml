@@ -15,8 +15,9 @@ jobs:
         with:
           flutter-version: "3.44.6"
           run-tests: true
+          artifact-name: dart-coverage-${{ github.run_id }}
 
-  coverage-comment:
+  coverage:
     needs: lint-dart
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -34,6 +35,12 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           enable-dart: true
           dart-coverage-path: dart-coverage/lcov.info
+
+      - uses: goldenm-software/layrz-actions/.github/actions/coverage-check@v1
+        with:
+          enable-dart: true
+          dart-coverage-path: dart-coverage/lcov.info
+          threshold: '80'
 
   changelog:
     runs-on: ubuntu-latest
