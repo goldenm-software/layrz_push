@@ -97,11 +97,10 @@ jobs:
           threshold: '80'
           enable-kotlin: true
           kotlin-coverage-path: kotlin-coverage/jacoco.xml
-          # Native suites are storage-focused for now — raise as coverage grows
+          # Kotlin gate is low while native suites are storage-focused — raise as coverage grows.
+          # Swift is comment-only (not gated): llvm-cov doesn't capture plugin sources yet — see follow-up.
           kotlin-threshold: '10'
-          enable-swift: true
-          swift-coverage-path: swift-coverage/lcov.info
-          swift-threshold: '10'
+          enable-swift: false
 
   changelog:
     runs-on: ubuntu-latest
