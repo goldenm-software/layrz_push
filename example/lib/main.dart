@@ -55,6 +55,7 @@ class _HomeViewState extends State<HomeView> {
   List<String> _topics = [];
   PermissionStatus? _permissionStatus;
   bool _secretsLoaded = false;
+  String? _busyAction;
 
   @override
   void initState() {
@@ -158,53 +159,83 @@ class _HomeViewState extends State<HomeView> {
   /// The `storageBucket` field is optional (nullable), so empty strings are
   /// converted to null before creating the credential objects.
   Future<void> _setCredentials() async {
-    final storageBucket = _storageBucket.isEmpty ? null : _storageBucket;
+    if (_busyAction != null) return;
+    setState(() => _busyAction = 'setCredentials');
+    try {
+      final storageBucket = _storageBucket.isEmpty ? null : _storageBucket;
 
-    final credentials = PushCredentials(
-      android: _isIos
-          ? null
-          : AndroidPushCredentials(
-              apiKey: _apiKey,
-              appId: _appId,
-              projectId: _projectId,
-              messagingSenderId: _messagingSenderId,
-              storageBucket: storageBucket,
-            ),
-      ios: _isIos
-          ? IosPushCredentials(
-              apiKey: _apiKey,
-              appId: _appId,
-              projectId: _projectId,
-              messagingSenderId: _messagingSenderId,
-              storageBucket: storageBucket,
-            )
-          : null,
-    );
+      final credentials = PushCredentials(
+        android: _isIos
+            ? null
+            : AndroidPushCredentials(
+                apiKey: _apiKey,
+                appId: _appId,
+                projectId: _projectId,
+                messagingSenderId: _messagingSenderId,
+                storageBucket: storageBucket,
+              ),
+        ios: _isIos
+            ? IosPushCredentials(
+                apiKey: _apiKey,
+                appId: _appId,
+                projectId: _projectId,
+                messagingSenderId: _messagingSenderId,
+                storageBucket: storageBucket,
+              )
+            : null,
+      );
 
-    final result = await _plugin.setCredentials(credentials: credentials);
-    _showResult('setCredentials', result);
+      final result = await _plugin.setCredentials(credentials: credentials);
+      _showResult('setCredentials', result);
+    } finally {
+      if (mounted) setState(() => _busyAction = null);
+    }
   }
 
   Future<void> _setDeviceId() async {
-    final result = await _plugin.setDeviceId(deviceId: _deviceId);
-    _showResult('setDeviceId', result);
+    if (_busyAction != null) return;
+    setState(() => _busyAction = 'setDeviceId');
+    try {
+      final result = await _plugin.setDeviceId(deviceId: _deviceId);
+      _showResult('setDeviceId', result);
+    } finally {
+      if (mounted) setState(() => _busyAction = null);
+    }
   }
 
   Future<void> _subscribe() async {
-    final result = await _plugin.subscribe();
-    _showResult('subscribe', result);
-    await _getSubscriptions();
+    if (_busyAction != null) return;
+    setState(() => _busyAction = 'subscribe');
+    try {
+      final result = await _plugin.subscribe();
+      _showResult('subscribe', result);
+      await _getSubscriptions();
+    } finally {
+      if (mounted) setState(() => _busyAction = null);
+    }
   }
 
   Future<void> _unsubscribe() async {
-    final result = await _plugin.unsubscribe();
-    _showResult('unsubscribe', result);
-    await _getSubscriptions();
+    if (_busyAction != null) return;
+    setState(() => _busyAction = 'unsubscribe');
+    try {
+      final result = await _plugin.unsubscribe();
+      _showResult('unsubscribe', result);
+      await _getSubscriptions();
+    } finally {
+      if (mounted) setState(() => _busyAction = null);
+    }
   }
 
   Future<void> _getSubscriptions() async {
-    final topics = await _plugin.getSubscriptions();
-    setState(() => _topics = topics);
+    if (_busyAction != null) return;
+    setState(() => _busyAction = 'getSubscriptions');
+    try {
+      final topics = await _plugin.getSubscriptions();
+      setState(() => _topics = topics);
+    } finally {
+      if (mounted) setState(() => _busyAction = null);
+    }
   }
 
   @override
@@ -278,22 +309,32 @@ class _HomeViewState extends State<HomeView> {
               ThemedButton.save(
                 labelText: 'Set credentials',
                 onTap: _setCredentials,
+                isLoading: _busyAction == 'setCredentials',
+                isDisabled: _busyAction != null && _busyAction != 'setCredentials',
               ),
               ThemedButton(
                 labelText: 'Set device ID',
                 onTap: _setDeviceId,
+                isLoading: _busyAction == 'setDeviceId',
+                isDisabled: _busyAction != null && _busyAction != 'setDeviceId',
               ),
               ThemedButton(
                 labelText: 'Subscribe',
                 onTap: _subscribe,
+                isLoading: _busyAction == 'subscribe',
+                isDisabled: _busyAction != null && _busyAction != 'subscribe',
               ),
               ThemedButton(
                 labelText: 'Unsubscribe',
                 onTap: _unsubscribe,
+                isLoading: _busyAction == 'unsubscribe',
+                isDisabled: _busyAction != null && _busyAction != 'unsubscribe',
               ),
               ThemedButton.show(
                 labelText: 'Get subscriptions',
                 onTap: _getSubscriptions,
+                isLoading: _busyAction == 'getSubscriptions',
+                isDisabled: _busyAction != null && _busyAction != 'getSubscriptions',
               ),
             ],
           ),
