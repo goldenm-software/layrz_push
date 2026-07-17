@@ -133,12 +133,12 @@ func buildMessage(topic, title, body, dataRaw, collapseID, channelID string, exp
 		return nil, errors.New("topic is required")
 	}
 
-	if title == "" {
-		return nil, errors.New("title is required for alert notifications")
-	}
+	// Determine if this is intended to be a notification message
+	hasNotification := title != "" || body != ""
 
-	if body == "" {
-		return nil, errors.New("body is required for alert notifications")
+	// If creating a notification, both title and body are required
+	if hasNotification && (title == "" || body == "") {
+		return nil, errors.New("title and body are both required when creating an alert notification")
 	}
 
 	data, err := parseData(dataRaw)
@@ -146,8 +146,11 @@ func buildMessage(topic, title, body, dataRaw, collapseID, channelID string, exp
 		return nil, err
 	}
 
-	data["title"] = title
-	data["body"] = body
+	// For notification messages, add title/body to data
+	if hasNotification {
+		data["title"] = title
+		data["body"] = body
+	}
 
 	// Truncate collapseID to APNS hard limit (64 bytes)
 	if len(collapseID) > 64 {
@@ -156,28 +159,29 @@ func buildMessage(topic, title, body, dataRaw, collapseID, channelID string, exp
 
 	ttl := pushTTL
 
-	apnHeaders := map[string]string{
-		"apns-priority":   "10",
-		"apns-push-type":  "alert",
-		"apns-expiration": strconv.FormatInt(expiresAt.Unix(), 10),
-	}
-
-	if collapseID != "" {
-		apnHeaders["apns-collapse-id"] = collapseID
-	}
-
 	msg := &messaging.Message{
 		Topic: topic,
 		Data:  data,
-		Android: &messaging.AndroidConfig{
-			Priority: "high",
-			TTL:      &ttl,
-			Notification: &messaging.AndroidNotification{
-				Title: title,
-				Body:  body,
-			},
-		},
-		APNS: &messaging.APNSConfig{
+	}
+
+	// Only set notification blocks if this is an alert notification
+	if hasNotification {
+		msg.Notification = &messaging.Notification{
+			Title: title,
+			Body:  body,
+		}
+
+		apnHeaders := map[string]string{
+			"apns-priority":   "10",
+			"apns-push-type":  "alert",
+			"apns-expiration": strconv.FormatInt(expiresAt.Unix(), 10),
+		}
+
+		if collapseID != "" {
+			apnHeaders["apns-collapse-id"] = collapseID
+		}
+
+		msg.APNS = &messaging.APNSConfig{
 			Headers: apnHeaders,
 			Payload: &messaging.APNSPayload{
 				Aps: &messaging.Aps{
@@ -187,12 +191,30 @@ func buildMessage(topic, title, body, dataRaw, collapseID, channelID string, exp
 					},
 				},
 			},
-		},
+		}
+
+		msg.Android = &messaging.AndroidConfig{
+			Priority: "high",
+			TTL:      &ttl,
+			Notification: &messaging.AndroidNotification{
+				Title:     title,
+				Body:      body,
+				ChannelID: channelID,
+			},
+		}
+	} else {
+		// Data-only message: set Android config for delivery only
+		msg.Android = &messaging.AndroidConfig{
+			Priority: "high",
+			TTL:      &ttl,
+		}
 	}
 
-	if msg.Notification == nil && len(msg.Data) == 0 {
+	// Validate that message has content: either a notification or data
+	if !hasNotification && len(msg.Data) == 0 {
 		return nil, errors.New("nothing to send: set a title, a body or data")
 	}
+
 	return msg, nil
 }
 

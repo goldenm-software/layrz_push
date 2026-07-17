@@ -80,7 +80,7 @@ func TestBuildMessageCollapseIDTruncation(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		longID += "a"
 	}
-	msg, err := buildMessage("device_test", "Title", "", "", longID, "", expiresAt)
+	msg, err := buildMessage("device_test", "Title", "Body", "", longID, "", expiresAt)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestBuildMessageCollapseIDTruncation(t *testing.T) {
 
 func TestBuildMessageChannelID(t *testing.T) {
 	expiresAt := time.Unix(2000, 0)
-	msg, err := buildMessage("device_test", "Title", "", "", "", "my_channel", expiresAt)
+	msg, err := buildMessage("device_test", "Title", "Body", "", "", "my_channel", expiresAt)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -124,8 +124,14 @@ func TestBuildMessageEmpty(t *testing.T) {
 	if _, err := buildMessage("device_test", "", "", "", "", "", expiresAt); err == nil {
 		t.Error("expected an error when there is nothing to send")
 	}
-	if _, err := buildMessage("", "Title", "", "", "", "", expiresAt); err == nil {
+	if _, err := buildMessage("", "Title", "Body", "", "", "", expiresAt); err == nil {
 		t.Error("expected an error when the topic is empty")
+	}
+	if _, err := buildMessage("device_test", "Title", "", "", "", "", expiresAt); err == nil {
+		t.Error("expected error when title provided but body is empty")
+	}
+	if _, err := buildMessage("device_test", "", "Body", "", "", "", expiresAt); err == nil {
+		t.Error("expected error when body provided but title is empty")
 	}
 }
 
