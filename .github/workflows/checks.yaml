@@ -9,7 +9,7 @@ jobs:
   lint-dart:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: goldenm-software/layrz-actions/.github/actions/check-dart@v1
         with:
@@ -20,7 +20,7 @@ jobs:
   lint-kotlin:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Lint plugin sources
         uses: goldenm-software/layrz-actions/.github/actions/check-kotlin@v1
@@ -44,7 +44,7 @@ jobs:
   lint-swift:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: goldenm-software/layrz-actions/.github/actions/check-swift@v1
         with:
@@ -60,7 +60,7 @@ jobs:
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download dart coverage artifact
         uses: actions/download-artifact@v8
@@ -106,7 +106,7 @@ jobs:
   changelog:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
