@@ -1,0 +1,8 @@
+root = true
+
+[*.{kt,kts}]
+indent_size = 2
+max_line_length = 120
+ktlint_code_style = intellij_idea
+# package-name check is disabled: Flutter plugin package names may contain underscores per convention
+ktlint_standard_package-name = disabled
