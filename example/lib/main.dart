@@ -72,9 +72,34 @@ class _HomeViewState extends State<HomeView> {
     super.dispose();
   }
 
-  /// The credentials are plain text fields by default, but they can be
-  /// overriden by an `assets/secrets.json` file (gitignored), see
-  /// `assets/secrets.example.json` for the expected format.
+  /// Loads Firebase credentials and device ID from an optional `assets/secrets.json`.
+  ///
+  /// If present, the file can override the plain text form fields with pre-populated
+  /// values. This is useful for development and testing. The file is gitignored.
+  ///
+  /// Expected format (see `assets/secrets.example.json`):
+  /// ```json
+  /// {
+  ///   "deviceId": "my-device-uuid",
+  ///   "android": {
+  ///     "apiKey": "...",
+  ///     "appId": "...",
+  ///     "projectId": "...",
+  ///     "messagingSenderId": "...",
+  ///     "storageBucket": "..."
+  ///   },
+  ///   "ios": {
+  ///     "apiKey": "...",
+  ///     "appId": "...",
+  ///     "projectId": "...",
+  ///     "messagingSenderId": "...",
+  ///     "storageBucket": "..."
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// If no secrets file is found, or if parsing fails, the method silently returns
+  /// and leaves the form fields as their default (empty or pre-set) values.
   Future<void> _loadSecrets() async {
     String raw;
     try {
@@ -123,6 +148,15 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  /// Builds credentials for the current platform and injects them into the plugin.
+  ///
+  /// Demonstrates platform-aware credential building: only the credentials for
+  /// the current platform (Android or iOS) are populated; the other platform's
+  /// field is set to null. The native side reads its own field and ignores the
+  /// other, so sending both is safe.
+  ///
+  /// The `storageBucket` field is optional (nullable), so empty strings are
+  /// converted to null before creating the credential objects.
   Future<void> _setCredentials() async {
     final storageBucket = _storageBucket.isEmpty ? null : _storageBucket;
 
@@ -195,6 +229,7 @@ class _HomeViewState extends State<HomeView> {
           ),
           const Divider(height: 32),
           _section(context, '$platformName credentials'),
+          // Display a note if credentials were loaded from secrets.json
           if (_secretsLoaded)
             const Padding(
               padding: EdgeInsets.only(bottom: 8),
@@ -265,6 +300,9 @@ class _HomeViewState extends State<HomeView> {
           const SizedBox(height: 16),
           Text('Subscribed topics: ${_topics.isEmpty ? 'none' : _topics.join(', ')}'),
           const Divider(height: 32),
+          // This section only shows notifications received while the app was in foreground.
+          // Notifications arriving in the background or when the app is killed are
+          // displayed by the system directly and do not appear here.
           _section(context, 'Received notifications (foreground)'),
           if (_notifications.isEmpty) const Padding(padding: EdgeInsets.all(8), child: Text('None yet')),
           for (final notification in _notifications)

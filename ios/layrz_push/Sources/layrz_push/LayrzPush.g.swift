@@ -178,12 +178,22 @@ func deepHashLayrzPush(value: Any?, hasher: inout Hasher) {
 }
 
 
-/// Firebase credentials for both platforms. Each platform is optional,
-/// the native side picks its own.
+/// Container for Firebase credentials on both Android and iOS platforms.
+///
+/// This class wraps platform-specific credential objects. Each platform reads
+/// only its own credential object and ignores the other, allowing a single
+/// [PushCredentials] instance to carry credentials for both platforms at once.
+///
+/// This design enables multi-tenant scenarios where different Layrz clients
+/// can inject their own Firebase project credentials at runtime. Credentials
+/// can be hot-swapped by calling [LayrzPushPlatformChannel.setCredentials]
+/// multiple times with different [PushCredentials] instances.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 struct PushCredentials: Hashable {
+  /// Firebase credentials for Android, extracted from `google-services.json`.
   var android: AndroidPushCredentials? = nil
+  /// Firebase credentials for iOS, extracted from `GoogleService-Info.plist`.
   var ios: IosPushCredentials? = nil
 
 
@@ -217,20 +227,39 @@ struct PushCredentials: Hashable {
   }
 }
 
-/// Firebase credentials for Android, equivalent to the values found in
-/// `google-services.json`.
+/// Firebase credentials for Android, extracted from `google-services.json`.
+///
+/// These values must be obtained from the Firebase Console and bundled in
+/// the app's `google-services.json` file during normal Firebase setup. However,
+/// this plugin allows injecting credentials at runtime for multi-tenant support.
+///
+/// All required fields must be present for Firebase initialization to succeed
+/// on the native Android side.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 struct AndroidPushCredentials: Hashable {
-  /// `client[].api_key[].current_key` in google-services.json
+  /// API key for the Android client.
+  ///
+  /// Found in `google-services.json` at `client[].api_key[].current_key`.
   var apiKey: String
-  /// `client[].client_info.mobilesdk_app_id` in google-services.json
+  /// Mobile SDK app ID for the Android client.
+  ///
+  /// Found in `google-services.json` at `client[].client_info.mobilesdk_app_id`.
   var appId: String
-  /// `project_info.project_id` in google-services.json
+  /// Firebase project ID.
+  ///
+  /// Found in `google-services.json` at `project_info.project_id`.
+  /// This ID is shared across all platforms within the same Firebase project.
   var projectId: String
-  /// `project_info.project_number` in google-services.json
+  /// GCM (Google Cloud Messaging) sender ID, also known as the project number.
+  ///
+  /// Found in `google-services.json` at `project_info.project_number`.
+  /// Used by FCM to identify the project when sending messages.
   var messagingSenderId: String
-  /// `project_info.storage_bucket` in google-services.json
+  /// Cloud Storage bucket URL (optional).
+  ///
+  /// Found in `google-services.json` at `project_info.storage_bucket`.
+  /// This field is optional and may be null.
   var storageBucket: String? = nil
 
 
@@ -276,20 +305,39 @@ struct AndroidPushCredentials: Hashable {
   }
 }
 
-/// Firebase credentials for iOS, equivalent to the values found in
-/// `GoogleService-Info.plist`.
+/// Firebase credentials for iOS, extracted from `GoogleService-Info.plist`.
+///
+/// These values must be obtained from the Firebase Console and bundled in
+/// the app's `GoogleService-Info.plist` file during normal Firebase setup. However,
+/// this plugin allows injecting credentials at runtime for multi-tenant support.
+///
+/// All required fields must be present for Firebase initialization to succeed
+/// on the native iOS side.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 struct IosPushCredentials: Hashable {
-  /// `API_KEY` in GoogleService-Info.plist
+  /// API key for the iOS client.
+  ///
+  /// Found in `GoogleService-Info.plist` with the key `API_KEY`.
   var apiKey: String
-  /// `GOOGLE_APP_ID` in GoogleService-Info.plist
+  /// Firebase app ID for the iOS client.
+  ///
+  /// Found in `GoogleService-Info.plist` with the key `GOOGLE_APP_ID`.
   var appId: String
-  /// `PROJECT_ID` in GoogleService-Info.plist
+  /// Firebase project ID.
+  ///
+  /// Found in `GoogleService-Info.plist` with the key `PROJECT_ID`.
+  /// This ID is shared across all platforms within the same Firebase project.
   var projectId: String
-  /// `GCM_SENDER_ID` in GoogleService-Info.plist
+  /// GCM (Google Cloud Messaging) sender ID, also known as the project number.
+  ///
+  /// Found in `GoogleService-Info.plist` with the key `GCM_SENDER_ID`.
+  /// Used by FCM to identify the project when sending messages.
   var messagingSenderId: String
-  /// `STORAGE_BUCKET` in GoogleService-Info.plist
+  /// Cloud Storage bucket URL (optional).
+  ///
+  /// Found in `GoogleService-Info.plist` with the key `STORAGE_BUCKET`.
+  /// This field is optional and may be null.
   var storageBucket: String? = nil
 
 
@@ -337,13 +385,29 @@ struct IosPushCredentials: Hashable {
 
 /// A push notification received while the app is in foreground.
 ///
+/// This object is passed to the [LayrzPushCallbackChannel.onPush] callback
+/// when a notification arrives while the app is actively running. Notifications
+/// received in the background or when the app is terminated are displayed by
+/// the system directly and do not produce instances of this class.
+///
+/// The data payload is provided as a flat map of key-value string pairs, as
+/// received from FCM.
+///
 /// Generated class from Pigeon that represents data sent in messages.
 struct PushNotification: Hashable {
-  /// Title of the notification, if any.
+  /// Title of the notification, if provided by the FCM message.
+  ///
+  /// May be null if no title was set on the upstream message.
   var title: String? = nil
-  /// Body of the notification, if any.
+  /// Body of the notification, if provided by the FCM message.
+  ///
+  /// May be null if no body was set on the upstream message.
   var body: String? = nil
   /// Custom data payload attached to the notification.
+  ///
+  /// This is a flat map of key-value pairs set by the application server
+  /// or backend when sending the FCM message. Defaults to an empty map
+  /// if no data was provided.
   var data: [String: String]
 
 
@@ -433,29 +497,75 @@ class LayrzPushPigeonCodec: FlutterStandardMessageCodec, @unchecked Sendable {
 }
 
 
+/// Host API from Flutter to Native (via platform channels).
+///
+/// Provides the primary interface for managing Firebase Cloud Messaging (FCM)
+/// credentials and subscriptions on native platforms. All methods are async
+/// and communicate with native code through Pigeon-generated platform channels.
+///
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol LayrzPushPlatformChannel {
   /// Injects (or replaces) the Firebase credentials at runtime.
   ///
-  /// Each platform reads its own sub-object and ignores the other one.
-  /// If a Firebase app is already configured, it's deleted and re-created
-  /// with the new options.
+  /// This method allows hot-swapping between different Firebase projects without
+  /// restarting the app, enabling multi-tenant support. Each platform reads only
+  /// its own credentials object (Android reads [PushCredentials.android], iOS reads
+  /// [PushCredentials.ios]) and ignores the other.
+  ///
+  /// If a Firebase app is already configured on the native side, it is deleted and
+  /// re-initialized with the new credentials. This ensures the app stays connected
+  /// to the correct FCM backend for the current tenant.
+  ///
+  /// Returns `true` if credentials were successfully applied, `false` otherwise.
   func setCredentials(credentials: PushCredentials, completion: @escaping (Result<Bool, Error>) -> Void)
   /// Persists the Layrz device ID securely on the device.
   ///
-  /// The device ID defines the FCM topic used by [subscribe] and
-  /// [unsubscribe], following the format `device_{deviceId}`.
+  /// On Android, the device ID is encrypted using AES-GCM and stored in
+  /// SharedPreferences backed by Android Keystore. On iOS, it is stored in
+  /// Keychain (which survives app uninstall).
+  ///
+  /// The device ID defines the FCM topic that [subscribe] and [unsubscribe]
+  /// will target, following the format `device_{deviceId}`.
+  ///
+  /// Must be called before [subscribe] and [unsubscribe]; they will return
+  /// `false` if no device ID is set.
+  ///
+  /// Returns `true` if the device ID was successfully persisted, `false` otherwise.
   func setDeviceId(deviceId: String, completion: @escaping (Result<Bool, Error>) -> Void)
   /// Subscribes to the `device_{deviceId}` FCM topic.
   ///
-  /// Requires [setCredentials] and [setDeviceId] to be called first.
+  /// Requires both [setCredentials] and [setDeviceId] to have been called
+  /// successfully first. If either is missing, this method returns `false`.
+  ///
+  /// On first subscribe after app install, FCM must fetch its registration token
+  /// from Google Mobile Services (GMS). This can take a considerable time (observed
+  /// up to 75 seconds) due to GMS communication and potential transient error
+  /// retries. The returned Future completes once FCM finishes initialization.
+  ///
+  /// The subscription list is tracked locally; subsequent calls to [getSubscriptions]
+  /// will reflect the newly added topic.
+  ///
+  /// Returns `true` if the subscription succeeded, `false` if credentials or device
+  /// ID are missing, or if the native subscribe operation failed.
   func subscribe(completion: @escaping (Result<Bool, Error>) -> Void)
   /// Unsubscribes from the `device_{deviceId}` FCM topic.
-  func unsubscribe(completion: @escaping (Result<Bool, Error>) -> Void)
-  /// Returns the list of currently subscribed topics.
   ///
-  /// FCM does not provide a native API for this, so the list is tracked
-  /// locally on each subscribe/unsubscribe call.
+  /// Requires [setDeviceId] to have been called first. Returns `false` if no
+  /// device ID is set or if the unsubscribe operation fails.
+  ///
+  /// The subscription list is tracked locally; subsequent calls to [getSubscriptions]
+  /// will reflect the removal of the topic.
+  ///
+  /// Returns `true` if the unsubscription succeeded, `false` otherwise.
+  func unsubscribe(completion: @escaping (Result<Bool, Error>) -> Void)
+  /// Returns the list of currently subscribed FCM topics.
+  ///
+  /// FCM does not provide a native API to query the full list of subscribed topics,
+  /// so this plugin maintains a local list that is updated on each [subscribe] and
+  /// [unsubscribe] call. This method returns that locally-tracked list.
+  ///
+  /// The list should contain topic strings like `device_12345` for subscribed topics.
+  /// If no subscriptions exist, an empty list is returned.
   func getSubscriptions(completion: @escaping (Result<[String], Error>) -> Void)
 }
 
@@ -467,9 +577,16 @@ class LayrzPushPlatformChannelSetup {
     let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
     /// Injects (or replaces) the Firebase credentials at runtime.
     ///
-    /// Each platform reads its own sub-object and ignores the other one.
-    /// If a Firebase app is already configured, it's deleted and re-created
-    /// with the new options.
+    /// This method allows hot-swapping between different Firebase projects without
+    /// restarting the app, enabling multi-tenant support. Each platform reads only
+    /// its own credentials object (Android reads [PushCredentials.android], iOS reads
+    /// [PushCredentials.ios]) and ignores the other.
+    ///
+    /// If a Firebase app is already configured on the native side, it is deleted and
+    /// re-initialized with the new credentials. This ensures the app stays connected
+    /// to the correct FCM backend for the current tenant.
+    ///
+    /// Returns `true` if credentials were successfully applied, `false` otherwise.
     let setCredentialsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.setCredentials\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       setCredentialsChannel.setMessageHandler { message, reply in
@@ -489,8 +606,17 @@ class LayrzPushPlatformChannelSetup {
     }
     /// Persists the Layrz device ID securely on the device.
     ///
-    /// The device ID defines the FCM topic used by [subscribe] and
-    /// [unsubscribe], following the format `device_{deviceId}`.
+    /// On Android, the device ID is encrypted using AES-GCM and stored in
+    /// SharedPreferences backed by Android Keystore. On iOS, it is stored in
+    /// Keychain (which survives app uninstall).
+    ///
+    /// The device ID defines the FCM topic that [subscribe] and [unsubscribe]
+    /// will target, following the format `device_{deviceId}`.
+    ///
+    /// Must be called before [subscribe] and [unsubscribe]; they will return
+    /// `false` if no device ID is set.
+    ///
+    /// Returns `true` if the device ID was successfully persisted, `false` otherwise.
     let setDeviceIdChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.setDeviceId\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       setDeviceIdChannel.setMessageHandler { message, reply in
@@ -510,7 +636,19 @@ class LayrzPushPlatformChannelSetup {
     }
     /// Subscribes to the `device_{deviceId}` FCM topic.
     ///
-    /// Requires [setCredentials] and [setDeviceId] to be called first.
+    /// Requires both [setCredentials] and [setDeviceId] to have been called
+    /// successfully first. If either is missing, this method returns `false`.
+    ///
+    /// On first subscribe after app install, FCM must fetch its registration token
+    /// from Google Mobile Services (GMS). This can take a considerable time (observed
+    /// up to 75 seconds) due to GMS communication and potential transient error
+    /// retries. The returned Future completes once FCM finishes initialization.
+    ///
+    /// The subscription list is tracked locally; subsequent calls to [getSubscriptions]
+    /// will reflect the newly added topic.
+    ///
+    /// Returns `true` if the subscription succeeded, `false` if credentials or device
+    /// ID are missing, or if the native subscribe operation failed.
     let subscribeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.subscribe\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       subscribeChannel.setMessageHandler { _, reply in
@@ -527,6 +665,14 @@ class LayrzPushPlatformChannelSetup {
       subscribeChannel.setMessageHandler(nil)
     }
     /// Unsubscribes from the `device_{deviceId}` FCM topic.
+    ///
+    /// Requires [setDeviceId] to have been called first. Returns `false` if no
+    /// device ID is set or if the unsubscribe operation fails.
+    ///
+    /// The subscription list is tracked locally; subsequent calls to [getSubscriptions]
+    /// will reflect the removal of the topic.
+    ///
+    /// Returns `true` if the unsubscription succeeded, `false` otherwise.
     let unsubscribeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.unsubscribe\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       unsubscribeChannel.setMessageHandler { _, reply in
@@ -542,10 +688,14 @@ class LayrzPushPlatformChannelSetup {
     } else {
       unsubscribeChannel.setMessageHandler(nil)
     }
-    /// Returns the list of currently subscribed topics.
+    /// Returns the list of currently subscribed FCM topics.
     ///
-    /// FCM does not provide a native API for this, so the list is tracked
-    /// locally on each subscribe/unsubscribe call.
+    /// FCM does not provide a native API to query the full list of subscribed topics,
+    /// so this plugin maintains a local list that is updated on each [subscribe] and
+    /// [unsubscribe] call. This method returns that locally-tracked list.
+    ///
+    /// The list should contain topic strings like `device_12345` for subscribed topics.
+    /// If no subscriptions exist, an empty list is returned.
     let getSubscriptionsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.getSubscriptions\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       getSubscriptionsChannel.setMessageHandler { _, reply in
@@ -563,9 +713,23 @@ class LayrzPushPlatformChannelSetup {
     }
   }
 }
+/// Flutter API from Native to Flutter (via platform channels).
+///
+/// Provides a callback interface for the native platform to invoke Flutter
+/// when events occur. This is implemented and set up by the Dart platform
+/// implementation to receive foreground push notifications.
+///
 /// Generated protocol from Pigeon that represents Flutter messages that can be called from Swift.
 protocol LayrzPushCallbackChannelProtocol {
   /// Called when a push notification arrives while the app is in foreground.
+  ///
+  /// This callback fires only when the app is actively running and visible to
+  /// the user. When the app is in the background or terminated, the system will
+  /// display the notification directly (with a system banner) and this callback
+  /// will not be invoked.
+  ///
+  /// The [notification] contains the title, body, and custom data payload sent
+  /// by the FCM backend.
   func onPush(notification notificationArg: PushNotification, completion: @escaping (Result<Void, PigeonError>) -> Void)
 }
 class LayrzPushCallbackChannel: LayrzPushCallbackChannelProtocol {
@@ -579,6 +743,14 @@ class LayrzPushCallbackChannel: LayrzPushCallbackChannelProtocol {
     return LayrzPushPigeonCodec.shared
   }
   /// Called when a push notification arrives while the app is in foreground.
+  ///
+  /// This callback fires only when the app is actively running and visible to
+  /// the user. When the app is in the background or terminated, the system will
+  /// display the notification directly (with a system banner) and this callback
+  /// will not be invoked.
+  ///
+  /// The [notification] contains the title, body, and custom data payload sent
+  /// by the FCM backend.
   func onPush(notification notificationArg: PushNotification, completion: @escaping (Result<Void, PigeonError>) -> Void) {
     let channelName: String = "dev.flutter.pigeon.layrz_push.LayrzPushCallbackChannel.onPush\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
