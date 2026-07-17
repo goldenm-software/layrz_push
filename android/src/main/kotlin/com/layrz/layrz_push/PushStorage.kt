@@ -47,7 +47,7 @@ import org.json.JSONObject
 class PushStorage(context: Context) {
   private val prefs: SharedPreferences = context.getSharedPreferences(
     "com.layrz.layrz_push.storage",
-    Context.MODE_PRIVATE
+    Context.MODE_PRIVATE,
   )
 
   private val keyStore: KeyStore by lazy {
@@ -102,7 +102,7 @@ class PushStorage(context: Context) {
         appId = obj.getString("appId"),
         projectId = obj.getString("projectId"),
         messagingSenderId = obj.getString("messagingSenderId"),
-        storageBucket = if (obj.has("storageBucket")) obj.getString("storageBucket") else null
+        storageBucket = if (obj.has("storageBucket")) obj.getString("storageBucket") else null,
       )
     } catch (e: Exception) {
       null
@@ -215,9 +215,8 @@ class PushStorage(context: Context) {
    *
    * @return A list of subscribed topic names, or an empty list if none are stored.
    */
-  fun getSubscriptions(): List<String> {
-    return prefs.getStringSet(PREFS_SUBSCRIPTIONS, emptySet())?.toList() ?: emptyList()
-  }
+  fun getSubscriptions(): List<String> =
+    prefs.getStringSet(PREFS_SUBSCRIPTIONS, emptySet())?.toList() ?: emptyList()
 
   /**
    * Clears all subscriptions from local storage.
@@ -253,12 +252,12 @@ class PushStorage(context: Context) {
 
     val keyGen = KeyGenerator.getInstance(
       KeyProperties.KEY_ALGORITHM_AES,
-      "AndroidKeyStore"
+      "AndroidKeyStore",
     )
 
     val spec = KeyGenParameterSpec.Builder(
       KEY_ALIAS,
-      KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+      KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
     ).apply {
       setBlockModes(KeyProperties.BLOCK_MODE_GCM)
       setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)

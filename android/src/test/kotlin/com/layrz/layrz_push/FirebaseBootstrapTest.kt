@@ -69,7 +69,7 @@ class FirebaseBootstrapTest {
       appId = "com.test.app:android:init-test-001",
       projectId = "test-project-bootstrap",
       messagingSenderId = "111222333444",
-      storageBucket = "test-project-bootstrap.appspot.com"
+      storageBucket = "test-project-bootstrap.appspot.com",
     )
     storage.saveCredentials(credentials)
 
@@ -97,7 +97,7 @@ class FirebaseBootstrapTest {
       appId = "com.test.app:android:idempotent-001",
       projectId = "test-project-idempotent",
       messagingSenderId = "555666777888",
-      storageBucket = null
+      storageBucket = null,
     )
     storage.saveCredentials(credentials)
 

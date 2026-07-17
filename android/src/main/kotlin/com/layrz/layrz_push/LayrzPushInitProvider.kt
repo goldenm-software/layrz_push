@@ -91,10 +91,9 @@ class LayrzPushInitProvider : ContentProvider() {
     projection: Array<String>?,
     selection: String?,
     selectionArgs: Array<String>?,
-    sortOrder: String?
-  ): Cursor? {
-    return null
-  }
+    sortOrder: String?,
+  ): Cursor? =
+    null
 
   /**
    * Stub implementation (not used). Always returns null.
@@ -102,9 +101,7 @@ class LayrzPushInitProvider : ContentProvider() {
    * @param uri The URI to query for MIME type.
    * @return null (this provider does not expose any data).
    */
-  override fun getType(uri: Uri): String? {
-    return null
-  }
+  override fun getType(uri: Uri): String? = null
 
   /**
    * Stub implementation (not used). Always returns null.
@@ -113,9 +110,7 @@ class LayrzPushInitProvider : ContentProvider() {
    * @param values The initial values to insert.
    * @return null (this provider does not expose any data).
    */
-  override fun insert(uri: Uri, values: ContentValues?): Uri? {
-    return null
-  }
+  override fun insert(uri: Uri, values: ContentValues?): Uri? = null
 
   /**
    * Stub implementation (not used). Always returns 0.
@@ -130,10 +125,8 @@ class LayrzPushInitProvider : ContentProvider() {
     uri: Uri,
     values: ContentValues?,
     selection: String?,
-    selectionArgs: Array<String>?
-  ): Int {
-    return 0
-  }
+    selectionArgs: Array<String>?,
+  ): Int = 0
 
   /**
    * Stub implementation (not used). Always returns 0.
@@ -143,7 +136,5 @@ class LayrzPushInitProvider : ContentProvider() {
    * @param selectionArgs The optional WHERE clause arguments.
    * @return 0 (no rows deleted).
    */
-  override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int {
-    return 0
-  }
+  override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
 }

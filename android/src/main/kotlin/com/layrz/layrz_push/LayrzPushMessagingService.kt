@@ -77,7 +77,7 @@ class LayrzPushMessagingService : FirebaseMessagingService() {
     val notification = PushNotification(
       title = message.notification?.title,
       body = message.notification?.body,
-      data = message.data
+      data = message.data,
     )
 
     val instance = LayrzPushPlugin.instance

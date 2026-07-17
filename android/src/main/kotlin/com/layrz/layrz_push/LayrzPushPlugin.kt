@@ -8,7 +8,6 @@ import com.google.firebase.FirebaseOptions
 import com.google.firebase.messaging.FirebaseMessaging
 import io.flutter.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
-import io.flutter.plugin.common.BinaryMessenger
 
 /**
  * Main Flutter plugin for managing Firebase Cloud Messaging (FCM) with multi-tenant
@@ -50,6 +49,7 @@ class LayrzPushPlugin : LayrzPushPlatformChannel, FlutterPlugin {
 
   companion object {
     private const val TAG = "LayrzPushPlugin/Android"
+
     /**
      * Static reference to the plugin instance, set by [onAttachedToEngine] and
      * cleared by [onDetachedFromEngine]. Used by [LayrzPushMessagingService] to
@@ -309,7 +309,5 @@ class LayrzPushPlugin : LayrzPushPlatformChannel, FlutterPlugin {
    * @return true if Firebase is already initialized or re-initialization succeeds;
    *         false if no persisted credentials are found or re-initialization fails.
    */
-  private fun ensureFirebase(): Boolean {
-    return FirebaseBootstrap.ensureFirebase(context)
-  }
+  private fun ensureFirebase(): Boolean = FirebaseBootstrap.ensureFirebase(context)
 }

@@ -45,7 +45,7 @@ class PushStorageTest {
       appId = "com.test.app:android:abc123def456",
       projectId = "test-project-id",
       messagingSenderId = "123456789012",
-      storageBucket = "test-project-id.appspot.com"
+      storageBucket = "test-project-id.appspot.com",
     )
 
     storage.saveCredentials(credentials)
@@ -72,7 +72,7 @@ class PushStorageTest {
       appId = "com.test.app:android:xyz789uvw012",
       projectId = "test-project-2",
       messagingSenderId = "987654321098",
-      storageBucket = null
+      storageBucket = null,
     )
 
     storage.saveCredentials(credentials)
@@ -111,7 +111,7 @@ class PushStorageTest {
     // Write garbage JSON directly to SharedPreferences using raw preferences.
     val prefs = context.getSharedPreferences(
       "com.layrz.layrz_push.storage",
-      Context.MODE_PRIVATE
+      Context.MODE_PRIVATE,
     )
     prefs.edit().putString("credentials", "{invalid json garbage}").apply()
 

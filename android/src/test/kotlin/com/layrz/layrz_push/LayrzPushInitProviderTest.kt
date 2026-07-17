@@ -6,7 +6,6 @@ import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.google.firebase.FirebaseApp
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.After
@@ -77,7 +76,7 @@ class LayrzPushInitProviderTest {
       appId = "com.test.app:android:provider-001",
       projectId = "test-project-provider",
       messagingSenderId = "999888777666",
-      storageBucket = "test-project-provider.appspot.com"
+      storageBucket = "test-project-provider.appspot.com",
     )
     storage.saveCredentials(credentials)
 
@@ -102,7 +101,7 @@ class LayrzPushInitProviderTest {
       null,
       null,
       null,
-      null
+      null,
     )
     assertNull(result)
   }
@@ -134,7 +133,7 @@ class LayrzPushInitProviderTest {
     }
     val result = provider.insert(
       Uri.parse("content://com.layrz.layrz_push.test/data"),
-      values
+      values,
     )
     assertNull(result)
   }
@@ -155,7 +154,7 @@ class LayrzPushInitProviderTest {
       Uri.parse("content://com.layrz.layrz_push.test/data"),
       values,
       null,
-      null
+      null,
     )
     assertEquals(0, result)
   }
@@ -172,7 +171,7 @@ class LayrzPushInitProviderTest {
     val result = provider.delete(
       Uri.parse("content://com.layrz.layrz_push.test/data"),
       null,
-      null
+      null,
     )
     assertEquals(0, result)
   }
