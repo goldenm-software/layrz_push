@@ -5,15 +5,15 @@ import android.content.Context
 import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.google.firebase.FirebaseApp
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Unit tests for [LayrzPushInitProvider], covering cold-start Firebase initialization
@@ -71,13 +71,14 @@ class LayrzPushInitProviderTest {
   fun onCreateReturnsTrueAndInitializeFirebaseWhenCredentialsStored() {
     // Arrange: Save credentials to storage before setting up the provider.
     val storage = PushStorage(context)
-    val credentials = AndroidPushCredentials(
-      apiKey = "test-api-key-provider",
-      appId = "com.test.app:android:provider-001",
-      projectId = "test-project-provider",
-      messagingSenderId = "999888777666",
-      storageBucket = "test-project-provider.appspot.com",
-    )
+    val credentials =
+      AndroidPushCredentials(
+        apiKey = "test-api-key-provider",
+        appId = "com.test.app:android:provider-001",
+        projectId = "test-project-provider",
+        messagingSenderId = "999888777666",
+        storageBucket = "test-project-provider.appspot.com",
+      )
     storage.saveCredentials(credentials)
 
     // Act: Setup the provider (triggers onCreate).
@@ -96,13 +97,14 @@ class LayrzPushInitProviderTest {
   @Test
   fun queryReturnsNull() {
     provider = Robolectric.setupContentProvider(LayrzPushInitProvider::class.java)
-    val result = provider.query(
-      Uri.parse("content://com.layrz.layrz_push.test/data"),
-      null,
-      null,
-      null,
-      null,
-    )
+    val result =
+      provider.query(
+        Uri.parse("content://com.layrz.layrz_push.test/data"),
+        null,
+        null,
+        null,
+        null,
+      )
     assertNull(result)
   }
 
@@ -128,13 +130,15 @@ class LayrzPushInitProviderTest {
   @Test
   fun insertReturnsNull() {
     provider = Robolectric.setupContentProvider(LayrzPushInitProvider::class.java)
-    val values = ContentValues().apply {
-      put("key", "value")
-    }
-    val result = provider.insert(
-      Uri.parse("content://com.layrz.layrz_push.test/data"),
-      values,
-    )
+    val values =
+      ContentValues().apply {
+        put("key", "value")
+      }
+    val result =
+      provider.insert(
+        Uri.parse("content://com.layrz.layrz_push.test/data"),
+        values,
+      )
     assertNull(result)
   }
 
@@ -147,15 +151,17 @@ class LayrzPushInitProviderTest {
   @Test
   fun updateReturnsZero() {
     provider = Robolectric.setupContentProvider(LayrzPushInitProvider::class.java)
-    val values = ContentValues().apply {
-      put("key", "value")
-    }
-    val result = provider.update(
-      Uri.parse("content://com.layrz.layrz_push.test/data"),
-      values,
-      null,
-      null,
-    )
+    val values =
+      ContentValues().apply {
+        put("key", "value")
+      }
+    val result =
+      provider.update(
+        Uri.parse("content://com.layrz.layrz_push.test/data"),
+        values,
+        null,
+        null,
+      )
     assertEquals(0, result)
   }
 
@@ -168,11 +174,12 @@ class LayrzPushInitProviderTest {
   @Test
   fun deleteReturnsZero() {
     provider = Robolectric.setupContentProvider(LayrzPushInitProvider::class.java)
-    val result = provider.delete(
-      Uri.parse("content://com.layrz.layrz_push.test/data"),
-      null,
-      null,
-    )
+    val result =
+      provider.delete(
+        Uri.parse("content://com.layrz.layrz_push.test/data"),
+        null,
+        null,
+      )
     assertEquals(0, result)
   }
 

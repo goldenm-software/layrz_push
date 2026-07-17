@@ -3,14 +3,14 @@ package com.layrz.layrz_push
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.google.firebase.FirebaseApp
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * Unit tests for [FirebaseBootstrap], covering cold-start Firebase initialization
@@ -64,13 +64,14 @@ class FirebaseBootstrapTest {
   @Test
   fun ensureFirebaseInitializeWhenCredentialsExist() {
     // Arrange: Save valid credentials to storage.
-    val credentials = AndroidPushCredentials(
-      apiKey = "test-api-key-789",
-      appId = "com.test.app:android:init-test-001",
-      projectId = "test-project-bootstrap",
-      messagingSenderId = "111222333444",
-      storageBucket = "test-project-bootstrap.appspot.com",
-    )
+    val credentials =
+      AndroidPushCredentials(
+        apiKey = "test-api-key-789",
+        appId = "com.test.app:android:init-test-001",
+        projectId = "test-project-bootstrap",
+        messagingSenderId = "111222333444",
+        storageBucket = "test-project-bootstrap.appspot.com",
+      )
     storage.saveCredentials(credentials)
 
     // Act: Call ensureFirebase to re-initialize Firebase from stored credentials.
@@ -92,13 +93,14 @@ class FirebaseBootstrapTest {
   @Test
   fun ensureFirebaseReturnsTrueWhenAlreadyInitialized() {
     // Arrange: Save credentials and initialize Firebase once.
-    val credentials = AndroidPushCredentials(
-      apiKey = "test-api-key-idempotent",
-      appId = "com.test.app:android:idempotent-001",
-      projectId = "test-project-idempotent",
-      messagingSenderId = "555666777888",
-      storageBucket = null,
-    )
+    val credentials =
+      AndroidPushCredentials(
+        apiKey = "test-api-key-idempotent",
+        appId = "com.test.app:android:idempotent-001",
+        projectId = "test-project-idempotent",
+        messagingSenderId = "555666777888",
+        storageBucket = null,
+      )
     storage.saveCredentials(credentials)
 
     // Act: First call to ensureFirebase.

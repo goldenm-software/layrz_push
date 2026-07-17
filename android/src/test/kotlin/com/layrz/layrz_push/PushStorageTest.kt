@@ -2,15 +2,15 @@ package com.layrz.layrz_push
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Unit tests for [PushStorage], covering credentials persistence, subscriptions,
@@ -40,13 +40,14 @@ class PushStorageTest {
    */
   @Test
   fun credentialsRoundtripWithStorageBucket() {
-    val credentials = AndroidPushCredentials(
-      apiKey = "test-api-key-123",
-      appId = "com.test.app:android:abc123def456",
-      projectId = "test-project-id",
-      messagingSenderId = "123456789012",
-      storageBucket = "test-project-id.appspot.com",
-    )
+    val credentials =
+      AndroidPushCredentials(
+        apiKey = "test-api-key-123",
+        appId = "com.test.app:android:abc123def456",
+        projectId = "test-project-id",
+        messagingSenderId = "123456789012",
+        storageBucket = "test-project-id.appspot.com",
+      )
 
     storage.saveCredentials(credentials)
     val retrieved = storage.getCredentials()
@@ -67,13 +68,14 @@ class PushStorageTest {
    */
   @Test
   fun credentialsRoundtripWithoutStorageBucket() {
-    val credentials = AndroidPushCredentials(
-      apiKey = "test-api-key-456",
-      appId = "com.test.app:android:xyz789uvw012",
-      projectId = "test-project-2",
-      messagingSenderId = "987654321098",
-      storageBucket = null,
-    )
+    val credentials =
+      AndroidPushCredentials(
+        apiKey = "test-api-key-456",
+        appId = "com.test.app:android:xyz789uvw012",
+        projectId = "test-project-2",
+        messagingSenderId = "987654321098",
+        storageBucket = null,
+      )
 
     storage.saveCredentials(credentials)
     val retrieved = storage.getCredentials()
@@ -109,10 +111,11 @@ class PushStorageTest {
   @Test
   fun corruptedJsonHandling() {
     // Write garbage JSON directly to SharedPreferences using raw preferences.
-    val prefs = context.getSharedPreferences(
-      "com.layrz.layrz_push.storage",
-      Context.MODE_PRIVATE,
-    )
+    val prefs =
+      context.getSharedPreferences(
+        "com.layrz.layrz_push.storage",
+        Context.MODE_PRIVATE,
+      )
     prefs.edit().putString("credentials", "{invalid json garbage}").apply()
 
     val retrieved = storage.getCredentials()

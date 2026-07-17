@@ -41,7 +41,9 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
  *   registers this instance so [LayrzPushMessagingService] can forward messages.
  * - [onDetachedFromEngine]: Cleans up resources and deregisters the plugin instance.
  */
-class LayrzPushPlugin : LayrzPushPlatformChannel, FlutterPlugin {
+class LayrzPushPlugin :
+  LayrzPushPlatformChannel,
+  FlutterPlugin {
   private var callbackChannel: LayrzPushCallbackChannel? = null
   private var mainLooper: Handler? = null
   private var storage: PushStorage? = null
@@ -121,7 +123,10 @@ class LayrzPushPlugin : LayrzPushPlatformChannel, FlutterPlugin {
    * @param callback Invoked with [Result.success(true)] on successful initialization or
    *                 [Result.success(false)] if credentials are missing or initialization fails.
    */
-  override fun setCredentials(credentials: PushCredentials, callback: (Result<Boolean>) -> Unit) {
+  override fun setCredentials(
+    credentials: PushCredentials,
+    callback: (Result<Boolean>) -> Unit,
+  ) {
     if (credentials.android == null) {
       Log.d(TAG, "No Android credentials provided")
       callback(Result.success(false))
@@ -138,15 +143,16 @@ class LayrzPushPlugin : LayrzPushPlatformChannel, FlutterPlugin {
     }
 
     try {
-      val options = FirebaseOptions.Builder()
-        .setApiKey(androidCreds.apiKey)
-        .setApplicationId(androidCreds.appId)
-        .setProjectId(androidCreds.projectId)
-        .setGcmSenderId(androidCreds.messagingSenderId)
-        .apply {
-          androidCreds.storageBucket?.let { setStorageBucket(it) }
-        }
-        .build()
+      val options =
+        FirebaseOptions
+          .Builder()
+          .setApiKey(androidCreds.apiKey)
+          .setApplicationId(androidCreds.appId)
+          .setProjectId(androidCreds.projectId)
+          .setGcmSenderId(androidCreds.messagingSenderId)
+          .apply {
+            androidCreds.storageBucket?.let { setStorageBucket(it) }
+          }.build()
 
       FirebaseApp.initializeApp(context, options)
       Log.d(TAG, "Initialized FirebaseApp with new credentials")
@@ -167,7 +173,10 @@ class LayrzPushPlugin : LayrzPushPlatformChannel, FlutterPlugin {
    * @param deviceId Unique device identifier to persist and use for topic subscriptions.
    * @param callback Always invoked with [Result.success(true)] (storage is always successful).
    */
-  override fun setDeviceId(deviceId: String, callback: (Result<Boolean>) -> Unit) {
+  override fun setDeviceId(
+    deviceId: String,
+    callback: (Result<Boolean>) -> Unit,
+  ) {
     storage?.saveDeviceId(deviceId)
     Log.d(TAG, "Device ID saved securely")
     callback(Result.success(true))
@@ -206,7 +215,9 @@ class LayrzPushPlugin : LayrzPushPlatformChannel, FlutterPlugin {
     }
 
     val topic = "device_$deviceId"
-    FirebaseMessaging.getInstance().subscribeToTopic(topic)
+    FirebaseMessaging
+      .getInstance()
+      .subscribeToTopic(topic)
       .addOnCompleteListener { task ->
         if (task.isSuccessful) {
           Log.d(TAG, "Subscribed to topic: $topic")
@@ -252,7 +263,9 @@ class LayrzPushPlugin : LayrzPushPlatformChannel, FlutterPlugin {
     }
 
     val topic = "device_$deviceId"
-    FirebaseMessaging.getInstance().unsubscribeFromTopic(topic)
+    FirebaseMessaging
+      .getInstance()
+      .unsubscribeFromTopic(topic)
       .addOnCompleteListener { task ->
         if (task.isSuccessful) {
           Log.d(TAG, "Unsubscribed from topic: $topic")

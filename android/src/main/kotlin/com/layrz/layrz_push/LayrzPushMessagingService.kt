@@ -74,11 +74,12 @@ class LayrzPushMessagingService : FirebaseMessagingService() {
   override fun onMessageReceived(message: RemoteMessage) {
     super.onMessageReceived(message)
 
-    val notification = PushNotification(
-      title = message.notification?.title,
-      body = message.notification?.body,
-      data = message.data,
-    )
+    val notification =
+      PushNotification(
+        title = message.notification?.title,
+        body = message.notification?.body,
+        data = message.data,
+      )
 
     val instance = LayrzPushPlugin.instance
     if (instance == null) {

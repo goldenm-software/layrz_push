@@ -5,13 +5,13 @@ import android.content.SharedPreferences
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import org.json.JSONObject
 import java.security.KeyStore
 import java.util.Base64
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import org.json.JSONObject
 
 /**
  * Manages persistent storage for push credentials, device IDs, and topic subscriptions.
@@ -44,11 +44,14 @@ import org.json.JSONObject
  * updated after successful FCM subscription/unsubscription. This list may diverge from
  * actual FCM state if the device is offline or if credentials change.
  */
-class PushStorage(context: Context) {
-  private val prefs: SharedPreferences = context.getSharedPreferences(
-    "com.layrz.layrz_push.storage",
-    Context.MODE_PRIVATE,
-  )
+class PushStorage(
+  context: Context,
+) {
+  private val prefs: SharedPreferences =
+    context.getSharedPreferences(
+      "com.layrz.layrz_push.storage",
+      Context.MODE_PRIVATE,
+    )
 
   private val keyStore: KeyStore by lazy {
     KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -73,13 +76,14 @@ class PushStorage(context: Context) {
    * @param credentials [AndroidPushCredentials] containing Firebase configuration.
    */
   fun saveCredentials(credentials: AndroidPushCredentials) {
-    val json = JSONObject().apply {
-      put("apiKey", credentials.apiKey)
-      put("appId", credentials.appId)
-      put("projectId", credentials.projectId)
-      put("messagingSenderId", credentials.messagingSenderId)
-      credentials.storageBucket?.let { put("storageBucket", it) }
-    }
+    val json =
+      JSONObject().apply {
+        put("apiKey", credentials.apiKey)
+        put("appId", credentials.appId)
+        put("projectId", credentials.projectId)
+        put("messagingSenderId", credentials.messagingSenderId)
+        credentials.storageBucket?.let { put("storageBucket", it) }
+      }
     prefs.edit().putString(PREFS_CREDENTIALS, json.toString()).apply()
   }
 
@@ -136,7 +140,8 @@ class PushStorage(context: Context) {
     val ivB64 = Base64.getEncoder().encodeToString(iv)
     val encB64 = Base64.getEncoder().encodeToString(encryptedData)
 
-    prefs.edit()
+    prefs
+      .edit()
       .putString(PREFS_DEVICE_ID_IV, ivB64)
       .putString(PREFS_DEVICE_ID_ENC, encB64)
       .apply()
@@ -215,8 +220,7 @@ class PushStorage(context: Context) {
    *
    * @return A list of subscribed topic names, or an empty list if none are stored.
    */
-  fun getSubscriptions(): List<String> =
-    prefs.getStringSet(PREFS_SUBSCRIPTIONS, emptySet())?.toList() ?: emptyList()
+  fun getSubscriptions(): List<String> = prefs.getStringSet(PREFS_SUBSCRIPTIONS, emptySet())?.toList() ?: emptyList()
 
   /**
    * Clears all subscriptions from local storage.
@@ -250,21 +254,24 @@ class PushStorage(context: Context) {
       return existing
     }
 
-    val keyGen = KeyGenerator.getInstance(
-      KeyProperties.KEY_ALGORITHM_AES,
-      "AndroidKeyStore",
-    )
+    val keyGen =
+      KeyGenerator.getInstance(
+        KeyProperties.KEY_ALGORITHM_AES,
+        "AndroidKeyStore",
+      )
 
-    val spec = KeyGenParameterSpec.Builder(
-      KEY_ALIAS,
-      KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-    ).apply {
-      setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-      setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        setUserAuthenticationRequired(false)
-      }
-    }.build()
+    val spec =
+      KeyGenParameterSpec
+        .Builder(
+          KEY_ALIAS,
+          KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+        ).apply {
+          setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+          setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            setUserAuthenticationRequired(false)
+          }
+        }.build()
 
     keyGen.init(spec)
     return keyGen.generateKey()

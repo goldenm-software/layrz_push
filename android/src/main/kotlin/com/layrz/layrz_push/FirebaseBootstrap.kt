@@ -67,15 +67,16 @@ object FirebaseBootstrap {
     }
 
     return try {
-      val options = FirebaseOptions.Builder()
-        .setApiKey(creds.apiKey)
-        .setApplicationId(creds.appId)
-        .setProjectId(creds.projectId)
-        .setGcmSenderId(creds.messagingSenderId)
-        .apply {
-          creds.storageBucket?.let { setStorageBucket(it) }
-        }
-        .build()
+      val options =
+        FirebaseOptions
+          .Builder()
+          .setApiKey(creds.apiKey)
+          .setApplicationId(creds.appId)
+          .setProjectId(creds.projectId)
+          .setGcmSenderId(creds.messagingSenderId)
+          .apply {
+            creds.storageBucket?.let { setStorageBucket(it) }
+          }.build()
 
       FirebaseApp.initializeApp(context, options)
       Log.d(TAG, "Re-initialized Firebase from stored credentials")
