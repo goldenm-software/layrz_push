@@ -1,8 +1,8 @@
-gradle-wrapper.jar
+# gradle-wrapper.jar committed for CI
 /.gradle
 /captures/
-/gradlew
-/gradlew.bat
+# /gradlew committed for CI
+# /gradlew.bat committed for CI
 /local.properties
 GeneratedPluginRegistrant.java
 .cxx/
