@@ -51,7 +51,9 @@ class PushStorage(context: Context) {
     Context.MODE_PRIVATE
   )
 
-  private val keyStore: KeyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+  private val keyStore: KeyStore by lazy {
+    KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+  }
 
   companion object {
     private const val PREFS_CREDENTIALS = "credentials"
