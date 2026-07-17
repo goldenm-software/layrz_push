@@ -2,6 +2,10 @@
   package="com.layrz.layrz_push">
 
   <application>
+    <provider
+      android:name="com.layrz.layrz_push.LayrzPushInitProvider"
+      android:authorities="${applicationId}.layrz-push-init"
+      android:exported="false" />
     <service
       android:name="com.layrz.layrz_push.LayrzPushMessagingService"
       android:exported="false">

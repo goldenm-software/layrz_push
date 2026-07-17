@@ -25,9 +25,10 @@ import io.flutter.plugin.common.BinaryMessenger
  * - **Device Registration**: Persists encrypted device IDs via [setDeviceId].
  * - **Topic Subscription**: Manages FCM topic subscriptions using device ID
  *   (format: `device_{deviceId}`). Only topics are supported; direct tokens are not exposed.
- * - **Cold-start Re-initialization**: The [ensureFirebase] method re-initializes Firebase
- *   from persisted credentials when the process restarts and FirebaseApp is not yet
- *   initialized. Both [subscribe] and [unsubscribe] invoke this guard.
+ * - **Cold-start Re-initialization**: The primary mechanism is [LayrzPushInitProvider], a
+ *   ContentProvider that runs at process creation (before Application.onCreate and FCM handling).
+ *   It calls [FirebaseBootstrap.ensureFirebase] to initialize Firebase from persisted credentials.
+ *   [subscribe] and [unsubscribe] also invoke [ensureFirebase] as an explicit guard.
  * - **Callback Forwarding**: Forwards foreground-only push messages from [LayrzPushMessagingService]
  *   to the Dart layer via [callbackChannel].
  *
@@ -299,12 +300,8 @@ class LayrzPushPlugin : LayrzPushPlatformChannel, FlutterPlugin {
   /**
    * Ensures Firebase is initialized; re-initializes from persisted credentials if needed.
    *
-   * This is a cold-start guard: when the process is killed and restarted by the system
-   * (e.g., the FCM service waking up the app), the default [FirebaseApp] does not exist
-   * yet. Calling [FirebaseMessaging.getInstance()] without an initialized default app
-   * throws [IllegalStateException]. This method checks if any FirebaseApp is registered
-   * and returns true immediately if so. Otherwise, it retrieves persisted credentials
-   * from [PushStorage] and re-initializes Firebase.
+   * Delegates to [FirebaseBootstrap.ensureFirebase] to guarantee consistent initialization
+   * logic across all initialization paths (cold-start provider, FCM service, explicit operations).
    *
    * Used by both [subscribe] and [unsubscribe] to guarantee Firebase is available.
    * A null or missing device ID is not checked here; callers are responsible for that.
@@ -313,33 +310,6 @@ class LayrzPushPlugin : LayrzPushPlatformChannel, FlutterPlugin {
    *         false if no persisted credentials are found or re-initialization fails.
    */
   private fun ensureFirebase(): Boolean {
-    if (FirebaseApp.getApps(context).isNotEmpty()) {
-      return true
-    }
-
-    val creds = storage?.getCredentials()
-    if (creds == null) {
-      Log.d(TAG, "No stored credentials to re-initialize Firebase")
-      return false
-    }
-
-    return try {
-      val options = FirebaseOptions.Builder()
-        .setApiKey(creds.apiKey)
-        .setApplicationId(creds.appId)
-        .setProjectId(creds.projectId)
-        .setGcmSenderId(creds.messagingSenderId)
-        .apply {
-          creds.storageBucket?.let { setStorageBucket(it) }
-        }
-        .build()
-
-      FirebaseApp.initializeApp(context, options)
-      Log.d(TAG, "Re-initialized Firebase from stored credentials")
-      true
-    } catch (e: Throwable) {
-      Log.e(TAG, "Failed to re-initialize Firebase", e)
-      false
-    }
+    return FirebaseBootstrap.ensureFirebase(context)
   }
 }

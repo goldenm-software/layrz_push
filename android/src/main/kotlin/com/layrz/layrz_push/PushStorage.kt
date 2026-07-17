@@ -28,8 +28,9 @@ import javax.crypto.spec.GCMParameterSpec
  * **Plain SharedPreferences** (by design):
  * - Credentials: Firebase config (API key, app ID, project ID, messaging sender ID, storage bucket).
  * - Subscriptions: List of subscribed topic names.
- *   These are stored unencrypted because [LayrzPushMessagingService] must read credentials on cold
- *   start (before Dart code runs), and these values are not secret-grade in a multi-tenant system.
+ *   These are stored unencrypted because [LayrzPushInitProvider] and [LayrzPushMessagingService]
+ *   must read credentials on cold start (before Dart code runs), and these values are not
+ *   secret-grade in a multi-tenant system.
  *
  * ## Device ID Lifecycle
  *

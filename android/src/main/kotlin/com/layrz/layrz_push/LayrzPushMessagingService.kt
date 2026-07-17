@@ -34,6 +34,24 @@ class LayrzPushMessagingService : FirebaseMessagingService() {
   }
 
   /**
+   * Called when the service is created (e.g., when the system instantiates it to handle
+   * an incoming FCM message).
+   *
+   * This is a redundant safety guard: Firebase should already be initialized by
+   * [LayrzPushInitProvider.onCreate] at process startup. However, this guard ensures
+   * Firebase is initialized even if the provider path changes or fails for unexpected
+   * reasons. Never throws; logs errors without propagation.
+   */
+  override fun onCreate() {
+    super.onCreate()
+    runCatching {
+      FirebaseBootstrap.ensureFirebase(applicationContext)
+    }.onFailure { e ->
+      Log.e(TAG, "Error ensuring Firebase in service onCreate", e)
+    }
+  }
+
+  /**
    * Receives a push notification from FCM when the app is in the foreground.
    *
    * Foreground semantics:
