@@ -21,9 +21,14 @@ allprojects {
     }
 }
 
+jacoco {
+    toolVersion = "0.8.11"
+}
+
 plugins {
     id("com.android.library")
     id("kotlin-android")
+    jacoco
 }
 
 android {
@@ -64,6 +69,12 @@ android {
                     events("passed", "skipped", "failed", "standardOut", "standardError")
                     showStandardStreams = true
                 }
+
+                // Robolectric JaCoCo configuration for coverage reports
+                it.extensions.configure<JacocoTaskExtension> {
+                    isIncludeNoLocationClasses = true
+                    excludes = listOf("jdk.internal.*")
+                }
             }
         }
     }
@@ -84,5 +95,27 @@ dependencies {
     testImplementation("androidx.test:core:1.6.1")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.junit.vintage:junit-vintage-engine:5.10.2")
+}
+
+// JaCoCo coverage reporting task for unit tests
+tasks.register<JacocoReport>("jacocoDebugReport") {
+    dependsOn("testDebugUnitTest")
+
+    reports {
+        xml.required = true
+        xml.outputLocation = layout.buildDirectory.file("reports/jacoco/jacoco.xml")
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir("reports/jacoco/html")
+    }
+
+    classDirectories.setFrom(
+        fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) {
+            // Exclude Pigeon-generated code
+            exclude("**/LayrzPush.g*")
+        }
+    )
+
+    sourceDirectories.setFrom(files("src/main/kotlin"))
+    executionData.setFrom(layout.buildDirectory.file("jacoco/testDebugUnitTest.exec"))
 }
 
