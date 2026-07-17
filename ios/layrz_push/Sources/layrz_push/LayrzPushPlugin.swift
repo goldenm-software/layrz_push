@@ -294,7 +294,7 @@ public class LayrzPushPlugin: NSObject, FlutterPlugin, LayrzPushPlatformChannel,
   ///   - timeout: The maximum time to wait in seconds (default: 30).
   ///   - completion: Called with `true` if the token becomes available, `false` if registration fails or times out.
   private func awaitApnsToken(timeout: TimeInterval = 30, completion: @escaping (Bool) -> Void) {
-    if let _ = Messaging.messaging().apnsToken {
+    if Messaging.messaging().apnsToken != nil {
       completion(true)
       return
     }

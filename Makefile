@@ -38,23 +38,23 @@ install-tools:
 	mkdir -p $(TOOLS_DIR)
 	curl -sL https://github.com/pinterest/ktlint/releases/download/$(KTLINT_VERSION)/ktlint -o $(TOOLS_DIR)/ktlint
 	chmod +x $(TOOLS_DIR)/ktlint
-	curl -sL https://github.com/realm/SwiftLint/releases/download/$(SWIFTLINT_VERSION)/swiftlint_linux.zip -o $(TOOLS_DIR)/swiftlint.zip
-	cd $(TOOLS_DIR) && unzip -oq swiftlint.zip swiftlint && rm swiftlint.zip && chmod +x swiftlint
 
 # Mirrors the exact CI lint invocations (checks.yaml / layrz-actions)
 .PHONY: lint-kotlin
 lint-kotlin:
 	cd android && ../$(TOOLS_DIR)/ktlint "**/src/**/*.kt" "!**/*.g.kt" --reporter=plain
 
+# SwiftLint's linux binary needs a Swift toolchain (sourcekit), so it runs
+# in the official container instead — same pinned version as CI.
 .PHONY: lint-swift
 lint-swift:
-	$(TOOLS_DIR)/swiftlint lint --strict --force-exclude ios/layrz_push/Sources
+	podman run --rm -v $(CURDIR):/repo:z -w /repo ghcr.io/realm/swiftlint:$(SWIFTLINT_VERSION) swiftlint lint --strict --force-exclude ios/layrz_push/Sources
 
 # Autocorrect what the linters can fix themselves
 .PHONY: format
 format:
 	cd android && ../$(TOOLS_DIR)/ktlint "**/src/**/*.kt" "!**/*.g.kt" --format
-	$(TOOLS_DIR)/swiftlint lint --fix --force-exclude ios/layrz_push/Sources || true
+	podman run --rm -v $(CURDIR):/repo:z -w /repo ghcr.io/realm/swiftlint:$(SWIFTLINT_VERSION) swiftlint lint --fix --force-exclude ios/layrz_push/Sources || true
 
 # Run everything CI runs (except the macOS xcodebuild tests) before pushing
 .PHONY: checks
