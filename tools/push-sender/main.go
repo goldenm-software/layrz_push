@@ -1,6 +1,6 @@
 // push-sender is a TUI companion for the layrz_push example lab.
 //
-// It sends test push notifications to an FCM topic using the HTTP v1 API,
+// It sends test push notifications to an FCM topic using the Firebase Admin SDK,
 // authenticated with a Firebase service account key (Firebase console →
 // Project settings → Service accounts → Generate new private key).
 //
@@ -10,40 +10,30 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
+	firebase "firebase.google.com/go/v4"
+	"firebase.google.com/go/v4/messaging"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
-	"golang.org/x/oauth2/google"
+	"google.golang.org/api/option"
 )
 
-type notification struct {
-	Title string `json:"title,omitempty"`
-	Body  string `json:"body,omitempty"`
-}
-
-type message struct {
-	Topic        string            `json:"topic"`
-	Notification *notification     `json:"notification,omitempty"`
-	Data         map[string]string `json:"data,omitempty"`
-}
-
-type sendRequest struct {
-	Message message `json:"message"`
-}
-
 var (
+	// pushTTL is the fixed time-to-live for lab test messages.
+	// Messages older than this will be discarded by FCM,
+	// ensuring stale notifications don't clutter the device.
+	pushTTL = time.Minute
+
 	titleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))
 	okStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("10"))
 	errStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("9"))
@@ -77,12 +67,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	conf, err := google.JWTConfigFromJSON(raw, "https://www.googleapis.com/auth/firebase.messaging")
+	ctx := context.Background()
+	app, err := firebase.NewApp(ctx, nil, option.WithCredentialsFile(path))
 	if err != nil {
-		fmt.Println(errStyle.Render("✗ invalid service account key: " + err.Error()))
+		fmt.Println(errStyle.Render("✗ failed to init Firebase: " + err.Error()))
 		os.Exit(1)
 	}
-	client := conf.Client(context.Background())
+
+	client, err := app.Messaging(ctx)
+	if err != nil {
+		fmt.Println(errStyle.Render("✗ failed to get Messaging client: " + err.Error()))
+		os.Exit(1)
+	}
 
 	fmt.Printf("Project: %s (%s)\n\n", sa.ProjectID, sa.ClientEmail)
 
@@ -90,6 +86,8 @@ func main() {
 	title := "Hello from push-sender"
 	body := "It works!"
 	dataRaw := ""
+	collapseID := ""
+	channelID := ""
 
 	for {
 		form := huh.NewForm(huh.NewGroup(
@@ -97,18 +95,20 @@ func main() {
 			huh.NewInput().Title("Title").Value(&title),
 			huh.NewInput().Title("Body").Value(&body),
 			huh.NewInput().Title("Data").Description("Optional, key=value pairs separated by commas").Value(&dataRaw),
+			huh.NewInput().Title("Collapse ID").Description("Optional, dedups banners for the same logical event on iOS, max 64 bytes").Value(&collapseID),
+			huh.NewInput().Title("Android channel ID").Description("Optional, must match a channel created by the app").Value(&channelID),
 		))
 		if err := form.Run(); err != nil {
 			return
 		}
 
-		msg, err := buildMessage(topic, title, body, dataRaw)
+		msg, err := buildMessage(topic, title, body, dataRaw, collapseID, channelID, time.Now().Add(pushTTL))
 		if err != nil {
 			fmt.Println(errStyle.Render("✗ " + err.Error()))
 			continue
 		}
 
-		id, err := send(client, sa.ProjectID, msg)
+		id, err := client.Send(ctx, msg)
 		if err != nil {
 			fmt.Println(errStyle.Render("✗ " + err.Error()))
 		} else {
@@ -123,27 +123,70 @@ func main() {
 	}
 }
 
-func buildMessage(topic, title, body, dataRaw string) (message, error) {
+// buildMessage constructs a Firebase messaging.Message with the given parameters.
+// It validates that at least a notification or data is present, and applies
+// platform-specific constraints (APNS collapse ID truncation, Android channel ID, etc.).
+// The expiresAt time is used for the APNS expiration header.
+func buildMessage(topic, title, body, dataRaw, collapseID, channelID string, expiresAt time.Time) (*messaging.Message, error) {
 	topic = strings.TrimSpace(topic)
 	if topic == "" {
-		return message{}, errors.New("topic is required")
+		return nil, errors.New("topic is required")
 	}
 
 	data, err := parseData(dataRaw)
 	if err != nil {
-		return message{}, err
+		return nil, err
 	}
 
-	msg := message{Topic: topic, Data: data}
-	if title != "" || body != "" {
-		msg.Notification = &notification{Title: title, Body: body}
+	// Truncate collapseID to APNS hard limit (64 bytes)
+	if len(collapseID) > 64 {
+		collapseID = collapseID[:64]
 	}
+
+	ttl := pushTTL
+	msg := &messaging.Message{
+		Topic: topic,
+		Data:  data,
+		Android: &messaging.AndroidConfig{
+			Priority: "high",
+			TTL:      &ttl,
+		},
+	}
+
+	// Only add Android channel ID if provided
+	if channelID != "" {
+		msg.Android.Notification = &messaging.AndroidNotification{
+			ChannelID: channelID,
+		}
+	}
+
+	// Add notification block if title or body provided
+	if title != "" || body != "" {
+		msg.Notification = &messaging.Notification{
+			Title: title,
+			Body:  body,
+		}
+
+		// APNS headers only for alert notifications (not data-only)
+		msg.APNS = &messaging.APNSConfig{
+			Headers: map[string]string{
+				"apns-priority":   "10",
+				"apns-push-type":  "alert",
+				"apns-expiration": strconv.FormatInt(expiresAt.Unix(), 10),
+			},
+		}
+		if collapseID != "" {
+			msg.APNS.Headers["apns-collapse-id"] = collapseID
+		}
+	}
+
 	if msg.Notification == nil && len(msg.Data) == 0 {
-		return message{}, errors.New("nothing to send: set a title, a body or data")
+		return nil, errors.New("nothing to send: set a title, a body or data")
 	}
 	return msg, nil
 }
 
+// parseData parses a comma-separated list of key=value pairs into a map.
 func parseData(raw string) (map[string]string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -159,42 +202,6 @@ func parseData(raw string) (map[string]string, error) {
 		data[strings.TrimSpace(key)] = strings.TrimSpace(value)
 	}
 	return data, nil
-}
-
-func send(client *http.Client, projectID string, msg message) (string, error) {
-	payload, err := json.Marshal(sendRequest{Message: msg})
-	if err != nil {
-		return "", err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	url := fmt.Sprintf("https://fcm.googleapis.com/v1/projects/%s/messages:send", projectID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("FCM returned %s: %s", resp.Status, strings.TrimSpace(string(respBody)))
-	}
-
-	var out struct {
-		Name string `json:"name"`
-	}
-	if err := json.Unmarshal(respBody, &out); err != nil {
-		return "", err
-	}
-	return out.Name, nil
 }
 
 // resolveAccountPath finds the service account key: the -account flag, common
