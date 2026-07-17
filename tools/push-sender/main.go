@@ -133,10 +133,21 @@ func buildMessage(topic, title, body, dataRaw, collapseID, channelID string, exp
 		return nil, errors.New("topic is required")
 	}
 
+	if title == "" {
+		return nil, errors.New("title is required for alert notifications")
+	}
+
+	if body == "" {
+		return nil, errors.New("body is required for alert notifications")
+	}
+
 	data, err := parseData(dataRaw)
 	if err != nil {
 		return nil, err
 	}
+
+	data["title"] = title
+	data["body"] = body
 
 	// Truncate collapseID to APNS hard limit (64 bytes)
 	if len(collapseID) > 64 {
@@ -144,40 +155,39 @@ func buildMessage(topic, title, body, dataRaw, collapseID, channelID string, exp
 	}
 
 	ttl := pushTTL
+
+	apnHeaders := map[string]string{
+		"apns-priority":   "10",
+		"apns-push-type":  "alert",
+		"apns-expiration": strconv.FormatInt(expiresAt.Unix(), 10),
+	}
+
+	if collapseID != "" {
+		apnHeaders["apns-collapse-id"] = collapseID
+	}
+
 	msg := &messaging.Message{
 		Topic: topic,
 		Data:  data,
 		Android: &messaging.AndroidConfig{
 			Priority: "high",
 			TTL:      &ttl,
-		},
-	}
-
-	// Only add Android channel ID if provided
-	if channelID != "" {
-		msg.Android.Notification = &messaging.AndroidNotification{
-			ChannelID: channelID,
-		}
-	}
-
-	// Add notification block if title or body provided
-	if title != "" || body != "" {
-		msg.Notification = &messaging.Notification{
-			Title: title,
-			Body:  body,
-		}
-
-		// APNS headers only for alert notifications (not data-only)
-		msg.APNS = &messaging.APNSConfig{
-			Headers: map[string]string{
-				"apns-priority":   "10",
-				"apns-push-type":  "alert",
-				"apns-expiration": strconv.FormatInt(expiresAt.Unix(), 10),
+			Notification: &messaging.AndroidNotification{
+				Title: title,
+				Body:  body,
 			},
-		}
-		if collapseID != "" {
-			msg.APNS.Headers["apns-collapse-id"] = collapseID
-		}
+		},
+		APNS: &messaging.APNSConfig{
+			Headers: apnHeaders,
+			Payload: &messaging.APNSPayload{
+				Aps: &messaging.Aps{
+					Alert: &messaging.ApsAlert{
+						Title: title,
+						Body:  body,
+					},
+				},
+			},
+		},
 	}
 
 	if msg.Notification == nil && len(msg.Data) == 0 {
@@ -190,7 +200,7 @@ func buildMessage(topic, title, body, dataRaw, collapseID, channelID string, exp
 func parseData(raw string) (map[string]string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return nil, nil
+		return map[string]string{}, nil
 	}
 
 	data := map[string]string{}
