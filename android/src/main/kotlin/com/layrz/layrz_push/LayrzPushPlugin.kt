@@ -219,8 +219,7 @@ class LayrzPushPlugin :
    *
    * @return true if FirebaseApp is initialized, false otherwise.
    */
-  private fun isFirebaseInitialized(): Boolean =
-    runCatching { FirebaseApp.getInstance() }.isSuccess
+  private fun isFirebaseInitialized(): Boolean = runCatching { FirebaseApp.getInstance() }.isSuccess
 
   /**
    * Persists an encrypted device ID for topic-based subscription.
