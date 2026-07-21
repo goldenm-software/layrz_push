@@ -22,11 +22,11 @@ run:
 
 .PHONY: tui
 tui:
-	cd tools/push-secrets && go run .
+	cd tool/push-secrets && go run .
 
 .PHONY: send
 send:
-	cd tools/push-sender && go run .
+	cd tool/push-sender && go run .
 
 # Local lint tooling — pinned to the same versions CI uses (.tools is gitignored)
 KTLINT_VERSION := 1.4.1
