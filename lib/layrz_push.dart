@@ -5,7 +5,11 @@ import 'package:layrz_push/src/layrz_push_pigeon/pigeon_channel.dart';
 import 'package:layrz_push/src/platform_interface.dart';
 
 export 'package:layrz_push/src/layrz_push_pigeon/layrz_push.g.dart'
-    show PushCredentials, AndroidPushCredentials, IosPushCredentials, PushNotification;
+    show
+        PushCredentials,
+        AndroidPushCredentials,
+        IosPushCredentials,
+        PushNotification;
 export 'package:layrz_push/src/platform_interface.dart' show LayrzPushPlatform;
 
 /// Main facade for the Layrz Push plugin.
@@ -22,7 +26,7 @@ export 'package:layrz_push/src/platform_interface.dart' show LayrzPushPlatform;
 /// Typical usage flow:
 /// 1. Request notification permission from the user
 /// 2. Call [setCredentials] with your Firebase credentials
-/// 3. Call [setDeviceId] with your Layrz device ID
+/// 3. Call [setDeviceId] with your Layrz device ID (or [getDeviceId] to retrieve a previously set ID)
 /// 4. Call [subscribe] to start receiving notifications for `device_{deviceId}`
 /// 5. Listen to [onPush] to handle foreground notifications
 /// 6. Call [unsubscribe] when no longer needed (e.g., on logout)
@@ -97,6 +101,24 @@ class LayrzPush {
   /// Keychain behavior. Ensure this is the desired behavior for your use case.
   Future<bool> setDeviceId({required String deviceId}) {
     return _platform.setDeviceId(deviceId: deviceId);
+  }
+
+  /// Retrieves the persisted Layrz device ID from secure storage.
+  ///
+  /// Returns the device ID previously set via [setDeviceId].
+  ///
+  /// Storage details:
+  ///   - Android: Decrypted from AES-GCM-encrypted SharedPreferences (via Android Keystore)
+  ///   - iOS: Retrieved from Keychain
+  ///
+  /// Returns the device ID string if it was previously persisted. Returns null if:
+  ///   - No device ID has been set yet (call [setDeviceId] first)
+  ///   - On Android: Decryption fails (e.g., AndroidKeyStore key is unavailable after
+  ///     Auto Backup restore on a new install, or after device reset)
+  ///   - On iOS: The Keychain item is unavailable (e.g., on a different device after
+  ///     backup restore, or if the item was explicitly deleted)
+  Future<String?> getDeviceId() {
+    return _platform.getDeviceId();
   }
 
   /// Subscribes to the `device_{deviceId}` FCM topic.

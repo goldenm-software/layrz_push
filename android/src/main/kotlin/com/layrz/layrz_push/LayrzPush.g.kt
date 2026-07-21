@@ -588,6 +588,19 @@ interface LayrzPushPlatformChannel {
    */
   fun setDeviceId(deviceId: String, callback: (Result<Boolean>) -> Unit)
   /**
+   * Retrieves the persisted Layrz device ID from secure storage.
+   *
+   * On Android, the device ID is decrypted from AES-GCM-encrypted
+   * SharedPreferences (backed by Android Keystore). On iOS, it is retrieved
+   * from Keychain.
+   *
+   * Returns the device ID string if it was previously persisted via [setDeviceId].
+   * Returns null if no device ID has been set, if decryption fails (e.g., Android
+   * Auto Backup restored prefs on a new install without the Keystore key), or if
+   * the Keychain item is unavailable (e.g., on a different iOS device after backup).
+   */
+  fun getDeviceId(callback: (Result<String?>) -> Unit)
+  /**
    * Subscribes to the `device_{deviceId}` FCM topic.
    *
    * Requires both [setCredentials] and [setDeviceId] to have been called
@@ -665,6 +678,24 @@ interface LayrzPushPlatformChannel {
             val args = message as List<Any?>
             val deviceIdArg = args[0] as String
             api.setDeviceId(deviceIdArg) { result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(LayrzPushPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(LayrzPushPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.getDeviceId$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getDeviceId{ result: Result<String?> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(LayrzPushPigeonUtils.wrapError(error))

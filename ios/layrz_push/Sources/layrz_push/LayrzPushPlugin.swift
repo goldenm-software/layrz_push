@@ -62,27 +62,53 @@ public class LayrzPushPlugin: NSObject, FlutterPlugin, LayrzPushPlatformChannel,
   ///
   /// This method implements multi-tenant credential injection: Firebase is configured at runtime from credentials
   /// passed by the Dart layer, enabling hot-swapping of Firebase projects without rebuilding the app.
+  /// The method is idempotent: if the incoming credentials match the persisted ones and a FirebaseApp
+  /// is currently initialized, it returns immediately without deleting or re-configuring Firebase,
+  /// avoiding APNs re-registration and avoiding FCM registration-token invalidation.
   ///
   /// Process:
   /// 1. Extracts iOS-specific credentials from the cross-platform `PushCredentials` object.
-  /// 2. Persists credentials to UserDefaults (for cold-start re-initialization via `ensureFirebase()`).
-  /// 3. If a FirebaseApp instance already exists, deletes it first (the completion block from `delete` is not
+  /// 2. Loads previously stored credentials via `PushStorage.getCredentials()`.
+  /// 3. **Idempotency check**: If the stored credentials equal the incoming ones (compared field-by-field:
+  ///    apiKey, appId, projectId, messagingSenderId, storageBucket) AND a FirebaseApp is currently
+  ///    initialized, returns immediately with success.
+  /// 4. Otherwise, persists credentials to UserDefaults (for cold-start re-initialization via `ensureFirebase()`).
+  /// 5. If a FirebaseApp instance already exists, deletes it first (the completion block from `delete` is not
   ///    guaranteed to run on the main thread, so the next step is wrapped in `DispatchQueue.main.async`).
-  /// 4. Configures a new FirebaseApp with the credentials and requests APNs registration.
-  /// 5. Waits for APNs token registration with a 30-second timeout.
+  /// 6. Configures a new FirebaseApp with the credentials and requests APNs registration.
+  /// 7. Waits for APNs token registration with a 30-second timeout.
+  ///
+  /// Multi-tenant hot-swap: When credentials DIFFER, the delete + re-configure happens exactly as before.
   ///
   /// Note: FirebaseApp.configure must run on the main thread. The returned bool reflects APNs registration
   /// success (not just credential persistence), with a 30s timeout.
   func setCredentials(credentials: PushCredentials, completion: @escaping (Result<Bool, Error>) -> Void) {
+    log("setCredentials(): starting")
+
     guard let iosCredentials = credentials.ios else {
+      log("setCredentials(): No iOS credentials provided")
       completion(.success(false))
       return
     }
 
+    log("setCredentials(): projectId=\(iosCredentials.projectId)")
+
+    // Idempotency check: if credentials haven't changed and FirebaseApp is already initialized,
+    // skip delete + re-configure to avoid APNs re-registration and FCM registration-token churn.
+    if let storedCredentials = PushStorage.getCredentials(),
+       credentialsEqual(stored: storedCredentials, incoming: iosCredentials),
+       FirebaseApp.app() != nil {
+      log("setCredentials(): Credentials unchanged, keeping existing FirebaseApp")
+      completion(.success(true))
+      return
+    }
+
+    log("setCredentials(): Credentials differ or FirebaseApp not initialized, updating")
     PushStorage.saveCredentials(iosCredentials)
 
     let configure = {
       DispatchQueue.main.async { [weak self] in
+        self?.log("setCredentials(): Configuring FirebaseApp and requesting APNs registration")
         Self.configureFirebase(with: iosCredentials)
         UIApplication.shared.registerForRemoteNotifications()
         self?.awaitApnsToken { granted in
@@ -92,10 +118,29 @@ public class LayrzPushPlugin: NSObject, FlutterPlugin, LayrzPushPlatformChannel,
     }
 
     if let app = FirebaseApp.app() {
+      log("setCredentials(): Deleting existing FirebaseApp")
       app.delete { _ in configure() }
     } else {
       configure()
     }
+  }
+
+  /// Compares two [IosPushCredentials] objects field-by-field for equality.
+  ///
+  /// Since [IosPushCredentials] is a Pigeon-generated class, we cannot rely on its
+  /// synthesized equality. This helper performs a manual field-by-field comparison
+  /// (apiKey, appId, projectId, messagingSenderId, storageBucket) to detect changes.
+  ///
+  /// - Parameters:
+  ///   - stored: The previously persisted credentials.
+  ///   - incoming: The newly provided credentials.
+  /// - Returns: true if all fields match, false otherwise.
+  private func credentialsEqual(stored: IosPushCredentials, incoming: IosPushCredentials) -> Bool {
+    return stored.apiKey == incoming.apiKey &&
+           stored.appId == incoming.appId &&
+           stored.projectId == incoming.projectId &&
+           stored.messagingSenderId == incoming.messagingSenderId &&
+           stored.storageBucket == incoming.storageBucket
   }
 
   /// Stores the device identifier in the Keychain.
@@ -104,8 +149,26 @@ public class LayrzPushPlugin: NSObject, FlutterPlugin, LayrzPushPlatformChannel,
   /// app uninstall and reinstall. This is used to derive the FCM topic `device_{deviceId}` for topic-based
   /// push delivery.
   func setDeviceId(deviceId: String, completion: @escaping (Result<Bool, Error>) -> Void) {
+    log("setDeviceId(): starting, deviceId=\(deviceId.prefix(8))...")
     let success = PushStorage.saveDeviceId(deviceId)
+    log("setDeviceId(): Device ID saved to Keychain, success=\(success)")
     completion(.success(success))
+  }
+
+  /// Retrieves the device identifier from the Keychain.
+  ///
+  /// Returns the device ID previously persisted via [setDeviceId]. Returns nil if no device ID
+  /// has been stored or if retrieval from the Keychain fails (e.g., on a different iOS device
+  /// after backup restore, or if the Keychain item was deleted).
+  func getDeviceId(completion: @escaping (Result<String?, Error>) -> Void) {
+    log("getDeviceId(): starting")
+    let deviceId = PushStorage.getDeviceId()
+    if deviceId != nil {
+      log("getDeviceId(): Device ID retrieved successfully")
+    } else {
+      log("getDeviceId(): Device ID not found")
+    }
+    completion(.success(deviceId))
   }
 
   /// Subscribes the device to its FCM topic for receiving push notifications.
@@ -119,28 +182,35 @@ public class LayrzPushPlugin: NSObject, FlutterPlugin, LayrzPushPlatformChannel,
   /// - This mechanism awaits the APNs token with a 30-second timeout before attempting subscription.
   /// - On success, stores the topic in UserDefaults via `addSubscription()` for local tracking.
   func subscribe(completion: @escaping (Result<Bool, Error>) -> Void) {
+    log("subscribe(): starting")
+
     guard let deviceId = PushStorage.getDeviceId(), ensureFirebase() else {
-      log("Cannot subscribe: missing device ID or credentials")
+      log("subscribe(): Cannot subscribe: missing device ID or credentials")
       completion(.success(false))
       return
     }
 
+    log("subscribe(): topic=device_\(deviceId), waiting for APNs token")
     awaitApnsToken { [weak self] granted in
       guard granted else {
-        self?.log("APNs token registration failed or timed out; cannot subscribe to topic")
+        self?.log("subscribe(): APNs token registration failed or timed out; cannot subscribe to topic")
         completion(.success(false))
         return
       }
 
+      self?.log("subscribe(): APNs token available, calling subscribe(toTopic:)")
       let topic = "device_\(deviceId)"
+      let startTime = Date()
       Messaging.messaging().subscribe(toTopic: topic) { [weak self] error in
+        let elapsed = Int(Date().timeIntervalSince(startTime) * 1000)
         DispatchQueue.main.async {
           if let error = error {
-            self?.log("Failed to subscribe to topic \(topic): \(error.localizedDescription)")
+            self?.log("subscribe(): Failed to subscribe to topic \(topic) after \(elapsed)ms: \(error.localizedDescription)")
             completion(.success(false))
             return
           }
 
+          self?.log("subscribe(): Subscribed to topic: \(topic) in \(elapsed)ms")
           PushStorage.addSubscription(topic)
           completion(.success(true))
         }
@@ -159,28 +229,35 @@ public class LayrzPushPlugin: NSObject, FlutterPlugin, LayrzPushPlatformChannel,
   /// - This mechanism awaits the APNs token with a 30-second timeout before attempting unsubscription.
   /// - On success, removes the topic from UserDefaults via `removeSubscription()`.
   func unsubscribe(completion: @escaping (Result<Bool, Error>) -> Void) {
+    log("unsubscribe(): starting")
+
     guard let deviceId = PushStorage.getDeviceId(), ensureFirebase() else {
-      log("Cannot unsubscribe: missing device ID or credentials")
+      log("unsubscribe(): Cannot unsubscribe: missing device ID or credentials")
       completion(.success(false))
       return
     }
 
+    log("unsubscribe(): topic=device_\(deviceId), waiting for APNs token")
     awaitApnsToken { [weak self] granted in
       guard granted else {
-        self?.log("APNs token registration failed or timed out; cannot unsubscribe from topic")
+        self?.log("unsubscribe(): APNs token registration failed or timed out; cannot unsubscribe from topic")
         completion(.success(false))
         return
       }
 
+      self?.log("unsubscribe(): APNs token available, calling unsubscribe(fromTopic:)")
       let topic = "device_\(deviceId)"
+      let startTime = Date()
       Messaging.messaging().unsubscribe(fromTopic: topic) { [weak self] error in
+        let elapsed = Int(Date().timeIntervalSince(startTime) * 1000)
         DispatchQueue.main.async {
           if let error = error {
-            self?.log("Failed to unsubscribe from topic \(topic): \(error.localizedDescription)")
+            self?.log("unsubscribe(): Failed to unsubscribe from topic \(topic) after \(elapsed)ms: \(error.localizedDescription)")
             completion(.success(false))
             return
           }
 
+          self?.log("unsubscribe(): Unsubscribed from topic: \(topic) in \(elapsed)ms")
           PushStorage.removeSubscription(topic)
           completion(.success(true))
         }
@@ -193,7 +270,10 @@ public class LayrzPushPlugin: NSObject, FlutterPlugin, LayrzPushPlatformChannel,
   /// Returns the topics stored locally in UserDefaults; this reflects subscriptions initiated
   /// by this app instance, not subscriptions that may have been registered via other means.
   func getSubscriptions(completion: @escaping (Result<[String], Error>) -> Void) {
-    completion(.success(PushStorage.getSubscriptions()))
+    log("getSubscriptions(): starting")
+    let subs = PushStorage.getSubscriptions()
+    log("getSubscriptions(): found \(subs.count) subscribed topics")
+    completion(.success(subs))
   }
 
   // MARK: - APNs

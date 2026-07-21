@@ -7,7 +7,8 @@ class MockLayrzPushPlatform extends LayrzPushPlatform {
   PushCredentials? credentials;
   String? deviceId;
   final List<String> topics = [];
-  final StreamController<PushNotification> pushController = StreamController<PushNotification>.broadcast();
+  final StreamController<PushNotification> pushController =
+      StreamController<PushNotification>.broadcast();
 
   @override
   Stream<PushNotification> get onPush => pushController.stream;
@@ -23,6 +24,9 @@ class MockLayrzPushPlatform extends LayrzPushPlatform {
     this.deviceId = deviceId;
     return true;
   }
+
+  @override
+  Future<String?> getDeviceId() async => deviceId;
 
   @override
   Future<bool> subscribe() async {
@@ -64,12 +68,23 @@ void main() {
     expect(await plugin.setCredentials(credentials: credentials), isTrue);
     expect(platform.credentials, credentials);
 
-    expect(await plugin.setCredentials(credentials: PushCredentials()), isFalse);
+    expect(
+      await plugin.setCredentials(credentials: PushCredentials()),
+      isFalse,
+    );
   });
 
   test('setDeviceId delegates to the platform', () async {
     expect(await plugin.setDeviceId(deviceId: 'my-device'), isTrue);
     expect(platform.deviceId, 'my-device');
+  });
+
+  test('getDeviceId returns the stored device id', () async {
+    expect(await plugin.getDeviceId(), isNull);
+
+    await plugin.setDeviceId(deviceId: 'my-device');
+
+    expect(await plugin.getDeviceId(), 'my-device');
   });
 
   test('subscribe requires credentials and device id', () async {
@@ -92,7 +107,11 @@ void main() {
   });
 
   test('onPush emits notifications from the platform', () async {
-    final notification = PushNotification(title: 'Hello', body: 'World', data: {'key': 'value'});
+    final notification = PushNotification(
+      title: 'Hello',
+      body: 'World',
+      data: {'key': 'value'},
+    );
 
     final future = plugin.onPush.first;
     platform.pushController.add(notification);

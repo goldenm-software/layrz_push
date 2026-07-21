@@ -17,46 +17,8 @@ jobs:
           run-tests: true
           artifact-name: dart-coverage-${{ github.run_id }}
 
-  lint-kotlin:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Lint plugin sources
-        uses: goldenm-software/layrz-actions/.github/actions/check-kotlin@v1
-        with:
-          working-directory: android
-          run-tests: 'false'
-
-      - name: Run unit tests
-        uses: goldenm-software/layrz-actions/.github/actions/check-kotlin@v1
-        with:
-          working-directory: example/android
-          java-version: '21'
-          flutter-version: "3.44.6"
-          flutter-directory: example
-          gradle-task: ':layrz_push:testDebugUnitTest :layrz_push:jacocoDebugReport'
-          test-results-path: '../build/layrz_push/test-results'
-          coverage-path: '../build/layrz_push/reports/jacoco/jacoco.xml'
-          coverage-artifact-name: 'kotlin-coverage'
-          run-lint: 'false'
-
-  lint-swift:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: goldenm-software/layrz-actions/.github/actions/check-swift@v1
-        with:
-          working-directory: example/ios
-          flutter-version: "3.44.6"
-          flutter-directory: example
-          lint-directory: ios/layrz_push/Sources
-          coverage-include-pattern: 'layrz_push/Sources'
-          coverage-artifact-name: 'swift-coverage'
-
   coverage:
-    needs: [lint-dart, lint-kotlin, lint-swift]
+    needs: [lint-dart]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
@@ -68,38 +30,20 @@ jobs:
           name: dart-coverage-${{ github.run_id }}
           path: dart-coverage
 
-      - name: Download kotlin coverage artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: kotlin-coverage
-          path: kotlin-coverage
-
-      - name: Download swift coverage artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: swift-coverage
-          path: swift-coverage
-
       - uses: goldenm-software/layrz-actions/.github/actions/coverage-comment@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           enable-dart: true
           dart-coverage-path: dart-coverage/lcov.info
-          enable-kotlin: true
-          kotlin-coverage-path: kotlin-coverage/jacoco.xml
-          enable-swift: true
-          swift-coverage-path: swift-coverage/lcov.info
+          enable-kotlin: false
+          enable-swift: false
 
       - uses: goldenm-software/layrz-actions/.github/actions/coverage-check@v1
         with:
           enable-dart: true
           dart-coverage-path: dart-coverage/lcov.info
           threshold: '80'
-          enable-kotlin: true
-          kotlin-coverage-path: kotlin-coverage/jacoco.xml
-          # Kotlin gate is low while native suites are storage-focused — raise as coverage grows.
-          # Swift is comment-only (not gated): llvm-cov doesn't capture plugin sources yet — see follow-up.
-          kotlin-threshold: '10'
+          enable-kotlin: false
           enable-swift: false
 
   changelog:

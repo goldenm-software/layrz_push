@@ -136,22 +136,25 @@ void main() {
 
     // ============ AndroidPushCredentials Tests ============
 
-    test('AndroidPushCredentials: encode/decode with storageBucket present', () {
-      final original = AndroidPushCredentials(
-        apiKey: 'api-key',
-        appId: 'app-id',
-        projectId: 'project-id',
-        messagingSenderId: 'sender-id',
-        storageBucket: 'bucket.appspot.com',
-      );
+    test(
+      'AndroidPushCredentials: encode/decode with storageBucket present',
+      () {
+        final original = AndroidPushCredentials(
+          apiKey: 'api-key',
+          appId: 'app-id',
+          projectId: 'project-id',
+          messagingSenderId: 'sender-id',
+          storageBucket: 'bucket.appspot.com',
+        );
 
-      final codec = LayrzPushPlatformChannel.pigeonChannelCodec;
-      final encoded = codec.encodeMessage(original);
-      final decoded = codec.decodeMessage(encoded) as AndroidPushCredentials;
+        final codec = LayrzPushPlatformChannel.pigeonChannelCodec;
+        final encoded = codec.encodeMessage(original);
+        final decoded = codec.decodeMessage(encoded) as AndroidPushCredentials;
 
-      expect(decoded, equals(original));
-      expect(decoded.hashCode, equals(original.hashCode));
-    });
+        expect(decoded, equals(original));
+        expect(decoded.hashCode, equals(original.hashCode));
+      },
+    );
 
     test('AndroidPushCredentials: encode/decode with storageBucket null', () {
       final original = AndroidPushCredentials(
@@ -340,11 +343,7 @@ void main() {
     });
 
     test('PushNotification: encode/decode with empty data map', () {
-      final original = PushNotification(
-        title: 'Title',
-        body: 'Body',
-        data: {},
-      );
+      final original = PushNotification(title: 'Title', body: 'Body', data: {});
 
       final codec = LayrzPushPlatformChannel.pigeonChannelCodec;
       final encoded = codec.encodeMessage(original);
@@ -632,6 +631,51 @@ void main() {
 
       expect(result, isEmpty);
     });
+
+    // ============ getDeviceId Tests ============
+
+    test('getDeviceId: singleton returns device id', () async {
+      final codec = LayrzPushPlatformChannel.pigeonChannelCodec;
+      binding.defaultBinaryMessenger.setMockMessageHandler(
+        'dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.getDeviceId',
+        (message) async {
+          return codec.encodeMessage(['device-123']);
+        },
+      );
+
+      final result = await LayrzPushPigeonChannel.instance.getDeviceId();
+
+      expect(result, equals('device-123'));
+    });
+
+    test('getDeviceId: non-singleton instance works', () async {
+      final codec = LayrzPushPlatformChannel.pigeonChannelCodec;
+      binding.defaultBinaryMessenger.setMockMessageHandler(
+        'dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.getDeviceId',
+        (message) async {
+          return codec.encodeMessage(['device-456']);
+        },
+      );
+
+      final channel = LayrzPushPlatformChannel();
+      final result = await channel.getDeviceId();
+
+      expect(result, equals('device-456'));
+    });
+
+    test('getDeviceId: returns null when not set', () async {
+      final codec = LayrzPushPlatformChannel.pigeonChannelCodec;
+      binding.defaultBinaryMessenger.setMockMessageHandler(
+        'dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.getDeviceId',
+        (message) async {
+          return codec.encodeMessage([null]);
+        },
+      );
+
+      final result = await LayrzPushPigeonChannel.instance.getDeviceId();
+
+      expect(result, isNull);
+    });
   });
 
   group('Group 3: LayrzPushPlatformChannel error paths', () {
@@ -705,17 +749,12 @@ void main() {
       );
 
       expect(
-        () => LayrzPushPigeonChannel.instance.setDeviceId(
-          deviceId: 'device-bad',
-        ),
+        () =>
+            LayrzPushPigeonChannel.instance.setDeviceId(deviceId: 'device-bad'),
         throwsA(
           isA<PlatformException>()
               .having((e) => e.code, 'code', equals('network-error'))
-              .having(
-                (e) => e.details,
-                'details',
-                equals('details_object'),
-              ),
+              .having((e) => e.details, 'details', equals('details_object')),
         ),
       );
     });
@@ -736,8 +775,11 @@ void main() {
       expect(
         () => LayrzPushPigeonChannel.instance.subscribe(),
         throwsA(
-          isA<PlatformException>()
-              .having((e) => e.code, 'code', equals('invalid-credentials')),
+          isA<PlatformException>().having(
+            (e) => e.code,
+            'code',
+            equals('invalid-credentials'),
+          ),
         ),
       );
     });
@@ -765,8 +807,11 @@ void main() {
           credentials: PushCredentials(android: android, ios: null),
         ),
         throwsA(
-          isA<PlatformException>()
-              .having((e) => e.code, 'code', equals('channel-error')),
+          isA<PlatformException>().having(
+            (e) => e.code,
+            'code',
+            equals('channel-error'),
+          ),
         ),
       );
     });
@@ -780,12 +825,14 @@ void main() {
       );
 
       expect(
-        () => LayrzPushPigeonChannel.instance.setDeviceId(
-          deviceId: 'device-123',
-        ),
+        () =>
+            LayrzPushPigeonChannel.instance.setDeviceId(deviceId: 'device-123'),
         throwsA(
-          isA<PlatformException>()
-              .having((e) => e.code, 'code', equals('channel-error')),
+          isA<PlatformException>().having(
+            (e) => e.code,
+            'code',
+            equals('channel-error'),
+          ),
         ),
       );
     });
@@ -801,8 +848,11 @@ void main() {
       expect(
         () => LayrzPushPigeonChannel.instance.subscribe(),
         throwsA(
-          isA<PlatformException>()
-              .having((e) => e.code, 'code', equals('channel-error')),
+          isA<PlatformException>().having(
+            (e) => e.code,
+            'code',
+            equals('channel-error'),
+          ),
         ),
       );
     });
@@ -889,32 +939,35 @@ void main() {
       expect(emitted.body, isNull);
     });
 
-    test('onPush: stream emits notification with complex data payload', () async {
-      final codec = LayrzPushPlatformChannel.pigeonChannelCodec;
-      final notification = PushNotification(
-        title: 'Complex',
-        body: 'Data',
-        data: {
-          'nested_key': 'nested_value',
-          'another_key': 'another_value',
-          'number_string': '12345',
-        },
-      );
+    test(
+      'onPush: stream emits notification with complex data payload',
+      () async {
+        final codec = LayrzPushPlatformChannel.pigeonChannelCodec;
+        final notification = PushNotification(
+          title: 'Complex',
+          body: 'Data',
+          data: {
+            'nested_key': 'nested_value',
+            'another_key': 'another_value',
+            'number_string': '12345',
+          },
+        );
 
-      final onPushFuture = LayrzPushPigeonChannel.instance.onPush.first;
+        final onPushFuture = LayrzPushPigeonChannel.instance.onPush.first;
 
-      final encoded = codec.encodeMessage([notification]);
-      binding.defaultBinaryMessenger.handlePlatformMessage(
-        'dev.flutter.pigeon.layrz_push.LayrzPushCallbackChannel.onPush',
-        encoded,
-        (_) {},
-      );
+        final encoded = codec.encodeMessage([notification]);
+        binding.defaultBinaryMessenger.handlePlatformMessage(
+          'dev.flutter.pigeon.layrz_push.LayrzPushCallbackChannel.onPush',
+          encoded,
+          (_) {},
+        );
 
-      final emitted = await onPushFuture;
+        final emitted = await onPushFuture;
 
-      expect(emitted.data, hasLength(3));
-      expect(emitted.data['nested_key'], equals('nested_value'));
-    });
+        expect(emitted.data, hasLength(3));
+        expect(emitted.data['nested_key'], equals('nested_value'));
+      },
+    );
 
     test('onPush: stream emits multiple messages in sequence', () async {
       final codec = LayrzPushPlatformChannel.pigeonChannelCodec;
@@ -967,31 +1020,34 @@ void main() {
       expect(emitted[2], equals(notif3));
     });
 
-    test('onPush: multiple listeners can subscribe to broadcast stream', () async {
-      final codec = LayrzPushPlatformChannel.pigeonChannelCodec;
-      final notification = PushNotification(
-        title: 'Broadcast',
-        body: 'Test',
-        data: {},
-      );
+    test(
+      'onPush: multiple listeners can subscribe to broadcast stream',
+      () async {
+        final codec = LayrzPushPlatformChannel.pigeonChannelCodec;
+        final notification = PushNotification(
+          title: 'Broadcast',
+          body: 'Test',
+          data: {},
+        );
 
-      final stream = LayrzPushPigeonChannel.instance.onPush;
-      final listener1Future = stream.first;
-      final listener2Future = stream.first;
+        final stream = LayrzPushPigeonChannel.instance.onPush;
+        final listener1Future = stream.first;
+        final listener2Future = stream.first;
 
-      final encoded = codec.encodeMessage([notification]);
-      binding.defaultBinaryMessenger.handlePlatformMessage(
-        'dev.flutter.pigeon.layrz_push.LayrzPushCallbackChannel.onPush',
-        encoded,
-        (_) {},
-      );
+        final encoded = codec.encodeMessage([notification]);
+        binding.defaultBinaryMessenger.handlePlatformMessage(
+          'dev.flutter.pigeon.layrz_push.LayrzPushCallbackChannel.onPush',
+          encoded,
+          (_) {},
+        );
 
-      final emitted1 = await listener1Future;
-      final emitted2 = await listener2Future;
+        final emitted1 = await listener1Future;
+        final emitted2 = await listener2Future;
 
-      expect(emitted1, equals(notification));
-      expect(emitted2, equals(notification));
-    });
+        expect(emitted1, equals(notification));
+        expect(emitted2, equals(notification));
+      },
+    );
   });
 
   group('Group 5: LayrzPushPlatform defaults', () {
@@ -1001,12 +1057,11 @@ void main() {
       expect(
         () => platform.onPush,
         throwsA(
-          isA<UnimplementedError>()
-              .having(
-                (e) => e.message,
-                'message',
-                contains('onPush'),
-              ),
+          isA<UnimplementedError>().having(
+            (e) => e.message,
+            'message',
+            contains('onPush'),
+          ),
         ),
       );
     });
@@ -1040,19 +1095,13 @@ void main() {
     test('bare subclass throws UnimplementedError for subscribe', () {
       final platform = _BareLayrzPushPlatform();
 
-      expect(
-        () => platform.subscribe(),
-        throwsA(isA<UnimplementedError>()),
-      );
+      expect(() => platform.subscribe(), throwsA(isA<UnimplementedError>()));
     });
 
     test('bare subclass throws UnimplementedError for unsubscribe', () {
       final platform = _BareLayrzPushPlatform();
 
-      expect(
-        () => platform.unsubscribe(),
-        throwsA(isA<UnimplementedError>()),
-      );
+      expect(() => platform.unsubscribe(), throwsA(isA<UnimplementedError>()));
     });
 
     test('bare subclass throws UnimplementedError for getSubscriptions', () {

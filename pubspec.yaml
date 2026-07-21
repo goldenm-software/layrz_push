@@ -1,6 +1,6 @@
 name: layrz_push
 description: "A Flutter plugin to handle push notifications on Android and iOS using Firebase Cloud Messaging with runtime credential injection, designed for multi-tenant applications."
-version: 1.0.0
+version: 1.1.0
 repository: https://github.com/goldenm-software/layrz_push
 
 keywords:
@@ -23,6 +23,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  meta: ^1.18.0
 
 dev_dependencies:
   flutter_test:

@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -34,8 +34,11 @@ Object? _extractReplyValueOrThrow(
   return replyList.firstOrNull;
 }
 
-
-List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
+List<Object?> wrapResponse({
+  Object? result,
+  PlatformException? error,
+  bool empty = false,
+}) {
   if (empty) {
     return <Object?>[];
   }
@@ -44,6 +47,7 @@ List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty
   }
   return <Object?>[error.code, error.message, error.details];
 }
+
 bool _deepEquals(Object? a, Object? b) {
   if (identical(a, b)) {
     return true;
@@ -56,8 +60,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -106,7 +111,6 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
 /// Container for Firebase credentials on both Android and iOS platforms.
 ///
 /// This class wraps platform-specific credential objects. Each platform reads
@@ -118,10 +122,7 @@ int _deepHash(Object? value) {
 /// can be hot-swapped by calling [LayrzPushPlatformChannel.setCredentials]
 /// multiple times with different [PushCredentials] instances.
 class PushCredentials {
-  PushCredentials({
-    this.android,
-    this.ios,
-  });
+  PushCredentials({this.android, this.ios});
 
   /// Firebase credentials for Android, extracted from `google-services.json`.
   AndroidPushCredentials? android;
@@ -130,14 +131,12 @@ class PushCredentials {
   IosPushCredentials? ios;
 
   List<Object?> _toList() {
-    return <Object?>[
-      android,
-      ios,
-    ];
+    return <Object?>[android, ios];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static PushCredentials decode(Object result) {
     result as List<Object?>;
@@ -220,7 +219,8 @@ class AndroidPushCredentials {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static AndroidPushCredentials decode(Object result) {
     result as List<Object?>;
@@ -242,7 +242,11 @@ class AndroidPushCredentials {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(apiKey, other.apiKey) && _deepEquals(appId, other.appId) && _deepEquals(projectId, other.projectId) && _deepEquals(messagingSenderId, other.messagingSenderId) && _deepEquals(storageBucket, other.storageBucket);
+    return _deepEquals(apiKey, other.apiKey) &&
+        _deepEquals(appId, other.appId) &&
+        _deepEquals(projectId, other.projectId) &&
+        _deepEquals(messagingSenderId, other.messagingSenderId) &&
+        _deepEquals(storageBucket, other.storageBucket);
   }
 
   @override
@@ -306,7 +310,8 @@ class IosPushCredentials {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static IosPushCredentials decode(Object result) {
     result as List<Object?>;
@@ -328,7 +333,11 @@ class IosPushCredentials {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(apiKey, other.apiKey) && _deepEquals(appId, other.appId) && _deepEquals(projectId, other.projectId) && _deepEquals(messagingSenderId, other.messagingSenderId) && _deepEquals(storageBucket, other.storageBucket);
+    return _deepEquals(apiKey, other.apiKey) &&
+        _deepEquals(appId, other.appId) &&
+        _deepEquals(projectId, other.projectId) &&
+        _deepEquals(messagingSenderId, other.messagingSenderId) &&
+        _deepEquals(storageBucket, other.storageBucket);
   }
 
   @override
@@ -346,11 +355,7 @@ class IosPushCredentials {
 /// The data payload is provided as a flat map of key-value string pairs, as
 /// received from FCM.
 class PushNotification {
-  PushNotification({
-    this.title,
-    this.body,
-    required this.data,
-  });
+  PushNotification({this.title, this.body, required this.data});
 
   /// Title of the notification, if provided by the FCM message.
   ///
@@ -370,15 +375,12 @@ class PushNotification {
   Map<String, String> data;
 
   List<Object?> _toList() {
-    return <Object?>[
-      title,
-      body,
-      data,
-    ];
+    return <Object?>[title, body, data];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static PushNotification decode(Object result) {
     result as List<Object?>;
@@ -398,14 +400,15 @@ class PushNotification {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(title, other.title) && _deepEquals(body, other.body) && _deepEquals(data, other.data);
+    return _deepEquals(title, other.title) &&
+        _deepEquals(body, other.body) &&
+        _deepEquals(data, other.data);
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
 }
-
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -414,16 +417,16 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is PushCredentials) {
+    } else if (value is PushCredentials) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
-    }    else if (value is AndroidPushCredentials) {
+    } else if (value is AndroidPushCredentials) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is IosPushCredentials) {
+    } else if (value is IosPushCredentials) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is PushNotification) {
+    } else if (value is PushNotification) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
     } else {
@@ -457,9 +460,13 @@ class LayrzPushPlatformChannel {
   /// Constructor for [LayrzPushPlatformChannel].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  LayrzPushPlatformChannel({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  LayrzPushPlatformChannel({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -479,21 +486,23 @@ class LayrzPushPlatformChannel {
   ///
   /// Returns `true` if credentials were successfully applied, `false` otherwise.
   Future<bool> setCredentials({required PushCredentials credentials}) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.setCredentials$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.setCredentials$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentials]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[credentials],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -511,22 +520,53 @@ class LayrzPushPlatformChannel {
   ///
   /// Returns `true` if the device ID was successfully persisted, `false` otherwise.
   Future<bool> setDeviceId({required String deviceId}) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.setDeviceId$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.setDeviceId$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[deviceId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
+  }
+
+  /// Retrieves the persisted Layrz device ID from secure storage.
+  ///
+  /// On Android, the device ID is decrypted from AES-GCM-encrypted
+  /// SharedPreferences (backed by Android Keystore). On iOS, it is retrieved
+  /// from Keychain.
+  ///
+  /// Returns the device ID string if it was previously persisted via [setDeviceId].
+  /// Returns null if no device ID has been set, if decryption fails (e.g., Android
+  /// Auto Backup restored prefs on a new install without the Keystore key), or if
+  /// the Keychain item is unavailable (e.g., on a different iOS device after backup).
+  Future<String?> getDeviceId() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.getDeviceId$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+    return pigeonVar_replyValue as String?;
   }
 
   /// Subscribes to the `device_{deviceId}` FCM topic.
@@ -545,7 +585,8 @@ class LayrzPushPlatformChannel {
   /// Returns `true` if the subscription succeeded, `false` if credentials or device
   /// ID are missing, or if the native subscribe operation failed.
   Future<bool> subscribe() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.subscribe$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.subscribe$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -555,11 +596,10 @@ class LayrzPushPlatformChannel {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -573,7 +613,8 @@ class LayrzPushPlatformChannel {
   ///
   /// Returns `true` if the unsubscription succeeded, `false` otherwise.
   Future<bool> unsubscribe() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.unsubscribe$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.unsubscribe$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -583,11 +624,10 @@ class LayrzPushPlatformChannel {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
@@ -600,7 +640,8 @@ class LayrzPushPlatformChannel {
   /// The list should contain topic strings like `device_12345` for subscribed topics.
   /// If no subscriptions exist, an empty list is returned.
   Future<List<String>> getSubscriptions() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.getSubscriptions$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.getSubscriptions$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -610,11 +651,10 @@ class LayrzPushPlatformChannel {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<String>();
   }
 }
@@ -638,25 +678,36 @@ abstract class LayrzPushCallbackChannel {
   /// by the FCM backend.
   void onPush(PushNotification notification);
 
-  static void setUp(LayrzPushCallbackChannel? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
-    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  static void setUp(
+    LayrzPushCallbackChannel? api, {
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) {
+    messageChannelSuffix = messageChannelSuffix.isNotEmpty
+        ? '.$messageChannelSuffix'
+        : '';
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.layrz_push.LayrzPushCallbackChannel.onPush$messageChannelSuffix', pigeonChannelCodec,
-          binaryMessenger: binaryMessenger);
+        'dev.flutter.pigeon.layrz_push.LayrzPushCallbackChannel.onPush$messageChannelSuffix',
+        pigeonChannelCodec,
+        binaryMessenger: binaryMessenger,
+      );
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           final List<Object?> args = message! as List<Object?>;
-          final PushNotification arg_notification = args[0]! as PushNotification;
+          final PushNotification arg_notification =
+              args[0]! as PushNotification;
           try {
             api.onPush(arg_notification);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+              error: PlatformException(code: 'error', message: e.toString()),
+            );
           }
         });
       }
