@@ -106,18 +106,29 @@ class LayrzPushPlugin :
   /**
    * Sets or replaces Firebase credentials and hot-swaps the default FirebaseApp.
    *
-   * This is the core feature enabling multi-tenant credential injection. The method:
+   * This is the core feature enabling multi-tenant credential injection. The method is idempotent:
+   * if the incoming credentials match the persisted ones and a FirebaseApp is currently initialized,
+   * the method returns immediately without deleting or re-initializing Firebase, avoiding FCM
+   * registration-token invalidation and retry backoff delays.
+   *
+   * The method:
    * 1. Validates that Android credentials are present in the [PushCredentials] object.
-   * 2. Persists the credentials to encrypted storage via [PushStorage.saveCredentials].
-   * 3. Deletes the existing default [FirebaseApp], if any (wrapped in `runCatching`
+   * 2. Loads previously stored credentials via [storage.getCredentials()].
+   * 3. **Idempotency check**: If the stored credentials equal the incoming ones (compared field-by-field:
+   *    apiKey, appId, projectId, messagingSenderId, storageBucket) AND a FirebaseApp is currently
+   *    initialized, returns immediately with success.
+   * 4. Otherwise, persists the new credentials to storage via [PushStorage.saveCredentials].
+   * 5. Deletes the existing default [FirebaseApp], if any (wrapped in `runCatching`
    *    to gracefully handle its absence on first boot).
-   * 4. Builds a new [FirebaseOptions] from the provided credentials.
-   * 5. Re-initializes [FirebaseApp] with the new credentials as the default app
+   * 6. Builds a new [FirebaseOptions] from the provided credentials.
+   * 7. Re-initializes [FirebaseApp] with the new credentials as the default app
    *    (required for [FirebaseMessaging.getInstance]).
    *
-   * If any step fails, logs the error and returns false. Firebase credentials are
-   * persisted before initialization is attempted, so [ensureFirebase] can recover
-   * on cold restarts even if initialization fails (e.g., network issues).
+   * If any step fails, logs the error and returns false. Firebase credentials are persisted before
+   * initialization is attempted, so [ensureFirebase] can recover on cold restarts even if
+   * initialization fails (e.g., network issues).
+   *
+   * Multi-tenant hot-swap: When credentials DIFFER, the delete + re-init happens exactly as before.
    *
    * @param credentials PushCredentials object containing Android-specific Firebase config.
    * @param callback Invoked with [Result.success(true)] on successful initialization or
@@ -127,22 +138,37 @@ class LayrzPushPlugin :
     credentials: PushCredentials,
     callback: (Result<Boolean>) -> Unit,
   ) {
+    Log.d(TAG, "setCredentials(): starting")
+
     if (credentials.android == null) {
-      Log.d(TAG, "No Android credentials provided")
+      Log.d(TAG, "setCredentials(): No Android credentials provided")
       callback(Result.success(false))
       return
     }
 
     val androidCreds = credentials.android
+    val storedCreds = storage?.getCredentials()
+    Log.d(TAG, "setCredentials(): projectId=${androidCreds.projectId}")
+
+    // Idempotency check: if credentials haven't changed and FirebaseApp is already initialized,
+    // skip delete + re-init to avoid FCM registration-token churn.
+    if (credentialsEqual(storedCreds, androidCreds) && isFirebaseInitialized()) {
+      Log.d(TAG, "setCredentials(): Credentials unchanged, keeping existing FirebaseApp")
+      callback(Result.success(true))
+      return
+    }
+
+    Log.d(TAG, "setCredentials(): Credentials differ or FirebaseApp not initialized, updating")
     storage?.saveCredentials(androidCreds)
 
     runCatching {
       val existing = FirebaseApp.getInstance()
       existing.delete()
-      Log.d(TAG, "Deleted existing FirebaseApp")
+      Log.d(TAG, "setCredentials(): Deleted existing FirebaseApp")
     }
 
     try {
+      Log.d(TAG, "setCredentials(): Building FirebaseOptions")
       val options =
         FirebaseOptions
           .Builder()
@@ -155,13 +181,46 @@ class LayrzPushPlugin :
           }.build()
 
       FirebaseApp.initializeApp(context, options)
-      Log.d(TAG, "Initialized FirebaseApp with new credentials")
+      Log.d(TAG, "setCredentials(): Initialized FirebaseApp with new credentials")
       callback(Result.success(true))
     } catch (e: Throwable) {
-      Log.e(TAG, "Failed to initialize FirebaseApp", e)
+      Log.e(TAG, "setCredentials(): Failed to initialize FirebaseApp", e)
       callback(Result.success(false))
     }
   }
+
+  /**
+   * Compares two [AndroidPushCredentials] objects field-by-field for equality.
+   *
+   * Since [AndroidPushCredentials] is a Pigeon-generated class, we cannot rely on its
+   * synthesized equals() method. This helper performs a manual field-by-field comparison
+   * (apiKey, appId, projectId, messagingSenderId, storageBucket) to detect changes.
+   *
+   * @param stored The previously persisted credentials (may be null).
+   * @param incoming The newly provided credentials.
+   * @return true if both are non-null and all fields match, false otherwise.
+   */
+  private fun credentialsEqual(
+    stored: AndroidPushCredentials?,
+    incoming: AndroidPushCredentials,
+  ): Boolean {
+    if (stored == null) return false
+    return stored.apiKey == incoming.apiKey &&
+      stored.appId == incoming.appId &&
+      stored.projectId == incoming.projectId &&
+      stored.messagingSenderId == incoming.messagingSenderId &&
+      stored.storageBucket == incoming.storageBucket
+  }
+
+  /**
+   * Checks whether a FirebaseApp instance is currently initialized.
+   *
+   * Returns true if [FirebaseApp.getInstance()] succeeds, false if it throws.
+   *
+   * @return true if FirebaseApp is initialized, false otherwise.
+   */
+  private fun isFirebaseInitialized(): Boolean =
+    runCatching { FirebaseApp.getInstance() }.isSuccess
 
   /**
    * Persists an encrypted device ID for topic-based subscription.
@@ -177,9 +236,32 @@ class LayrzPushPlugin :
     deviceId: String,
     callback: (Result<Boolean>) -> Unit,
   ) {
+    Log.d(TAG, "setDeviceId(): starting, deviceId=${deviceId.take(8)}...")
     storage?.saveDeviceId(deviceId)
-    Log.d(TAG, "Device ID saved securely")
+    Log.d(TAG, "setDeviceId(): Device ID saved securely")
     callback(Result.success(true))
+  }
+
+  /**
+   * Retrieves the encrypted device ID from secure storage.
+   *
+   * Decrypts and returns the device ID previously persisted via [setDeviceId].
+   * Returns null if no device ID has been stored, if the AndroidKeyStore key
+   * is unavailable (e.g., after Auto Backup restore on a new install), or if
+   * decryption fails for any other reason.
+   *
+   * @param callback Invoked with [Result.success] containing the device ID string,
+   *                 or null if the device ID is not found or decryption fails.
+   */
+  override fun getDeviceId(callback: (Result<String?>) -> Unit) {
+    Log.d(TAG, "getDeviceId(): starting")
+    val deviceId = storage?.getDeviceId()
+    if (deviceId != null) {
+      Log.d(TAG, "getDeviceId(): Device ID retrieved successfully")
+    } else {
+      Log.d(TAG, "getDeviceId(): Device ID not found or decryption failed")
+    }
+    callback(Result.success(deviceId))
   }
 
   /**
@@ -201,32 +283,54 @@ class LayrzPushPlugin :
    *                 be initialized, or the FCM subscription fails.
    */
   override fun subscribe(callback: (Result<Boolean>) -> Unit) {
+    Log.d(TAG, "subscribe(): starting")
+
     val deviceId = storage?.getDeviceId()
     if (deviceId == null) {
-      Log.d(TAG, "Device ID not set, cannot subscribe")
+      Log.d(TAG, "subscribe(): Device ID not set, cannot subscribe")
       callback(Result.success(false))
       return
     }
+    Log.d(TAG, "subscribe(): topic=device_$deviceId")
 
     if (!ensureFirebase()) {
-      Log.d(TAG, "Firebase not initialized, cannot subscribe")
+      Log.d(TAG, "subscribe(): Firebase not initialized, cannot subscribe")
       callback(Result.success(false))
       return
     }
 
-    val topic = "device_$deviceId"
+    Log.d(TAG, "subscribe(): Firebase initialized, fetching FCM registration token...")
+    val tokenStartTime = System.currentTimeMillis()
     FirebaseMessaging
       .getInstance()
-      .subscribeToTopic(topic)
-      .addOnCompleteListener { task ->
-        if (task.isSuccessful) {
-          Log.d(TAG, "Subscribed to topic: $topic")
-          storage?.addSubscription(topic)
-          callback(Result.success(true))
+      .token
+      .addOnCompleteListener { tokenTask ->
+        val tokenElapsed = System.currentTimeMillis() - tokenStartTime
+        if (tokenTask.isSuccessful) {
+          val token = tokenTask.result
+          val tokenLast8 = token.takeLast(8)
+          Log.d(TAG, "subscribe(): FCM token acquired in ${tokenElapsed}ms (…$tokenLast8)")
         } else {
-          task.exception?.let { Log.e(TAG, "Failed to subscribe to topic: $topic", it) }
-          callback(Result.success(false))
+          Log.d(TAG, "subscribe(): FCM token fetch failed after ${tokenElapsed}ms, proceeding with subscribeToTopic")
         }
+
+        val topic = "device_$deviceId"
+        Log.d(TAG, "subscribe(): calling subscribeToTopic($topic)")
+        val subscribeStartTime = System.currentTimeMillis()
+        FirebaseMessaging
+          .getInstance()
+          .subscribeToTopic(topic)
+          .addOnCompleteListener { task ->
+            val subscribeElapsed = System.currentTimeMillis() - subscribeStartTime
+            if (task.isSuccessful) {
+              Log.d(TAG, "subscribe(): Subscribed to topic: $topic in ${subscribeElapsed}ms")
+              storage?.addSubscription(topic)
+              callback(Result.success(true))
+            } else {
+              task.exception?.let { Log.e(TAG, "subscribe(): Failed to subscribe to topic: $topic after ${subscribeElapsed}ms", it) }
+              callback(Result.success(false))
+            }
+          }
       }
   }
 
@@ -249,30 +353,36 @@ class LayrzPushPlugin :
    *                 be initialized, or the FCM unsubscription fails.
    */
   override fun unsubscribe(callback: (Result<Boolean>) -> Unit) {
+    Log.d(TAG, "unsubscribe(): starting")
+
     val deviceId = storage?.getDeviceId()
     if (deviceId == null) {
-      Log.d(TAG, "Device ID not set")
+      Log.d(TAG, "unsubscribe(): Device ID not set")
       callback(Result.success(false))
       return
     }
+    Log.d(TAG, "unsubscribe(): topic=device_$deviceId")
 
     if (!ensureFirebase()) {
-      Log.d(TAG, "Firebase not initialized, cannot unsubscribe")
+      Log.d(TAG, "unsubscribe(): Firebase not initialized, cannot unsubscribe")
       callback(Result.success(false))
       return
     }
 
     val topic = "device_$deviceId"
+    Log.d(TAG, "unsubscribe(): calling unsubscribeFromTopic($topic)")
+    val startTime = System.currentTimeMillis()
     FirebaseMessaging
       .getInstance()
       .unsubscribeFromTopic(topic)
       .addOnCompleteListener { task ->
+        val elapsed = System.currentTimeMillis() - startTime
         if (task.isSuccessful) {
-          Log.d(TAG, "Unsubscribed from topic: $topic")
+          Log.d(TAG, "unsubscribe(): Unsubscribed from topic: $topic in ${elapsed}ms")
           storage?.removeSubscription(topic)
           callback(Result.success(true))
         } else {
-          task.exception?.let { Log.e(TAG, "Failed to unsubscribe from topic: $topic", it) }
+          task.exception?.let { Log.e(TAG, "unsubscribe(): Failed to unsubscribe from topic: $topic after ${elapsed}ms", it) }
           callback(Result.success(false))
         }
       }
@@ -288,7 +398,9 @@ class LayrzPushPlugin :
    * @param callback Invoked with [Result.success] containing a list of topic names.
    */
   override fun getSubscriptions(callback: (Result<List<String>>) -> Unit) {
+    Log.d(TAG, "getSubscriptions(): starting")
     val subs = storage?.getSubscriptions() ?: emptyList()
+    Log.d(TAG, "getSubscriptions(): found ${subs.size} subscribed topics")
     callback(Result.success(subs))
   }
 
