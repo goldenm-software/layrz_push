@@ -24,14 +24,16 @@ class LayrzPushPigeonChannel extends LayrzPushPlatform {
   static LayrzPushPigeonChannel? _instance;
 
   /// Returns the singleton instance, creating it if necessary.
-  static LayrzPushPigeonChannel get instance => _instance ??= LayrzPushPigeonChannel._();
+  static LayrzPushPigeonChannel get instance =>
+      _instance ??= LayrzPushPigeonChannel._();
 
   /// StreamController for broadcasting foreground push notifications.
   ///
   /// Created as a broadcast stream to allow multiple simultaneous listeners.
   /// New listeners will not receive notifications that arrived before they subscribed
   /// (unlike a regular stream controller).
-  final StreamController<PushNotification> _pushController = StreamController<PushNotification>.broadcast();
+  final StreamController<PushNotification> _pushController =
+      StreamController<PushNotification>.broadcast();
 
   /// Public stream of foreground push notifications.
   ///
@@ -49,7 +51,9 @@ class LayrzPushPigeonChannel extends LayrzPushPlatform {
   /// 2. [LayrzPushCallbackChannel.setUp] is called with a [_LayrzPushCallbackHandler]
   ///    to register the Flutter-side callback that receives native notifications
   LayrzPushPigeonChannel._() {
-    LayrzPushCallbackChannel.setUp(_LayrzPushCallbackHandler(pushController: _pushController));
+    LayrzPushCallbackChannel.setUp(
+      _LayrzPushCallbackHandler(pushController: _pushController),
+    );
   }
 
   /// Pigeon-generated platform channel for calling native methods.
@@ -63,7 +67,11 @@ class LayrzPushPigeonChannel extends LayrzPushPlatform {
       _channel.setCredentials(credentials: credentials);
 
   @override
-  Future<bool> setDeviceId({required String deviceId}) => _channel.setDeviceId(deviceId: deviceId);
+  Future<bool> setDeviceId({required String deviceId}) =>
+      _channel.setDeviceId(deviceId: deviceId);
+
+  @override
+  Future<String?> getDeviceId() => _channel.getDeviceId();
 
   @override
   Future<bool> subscribe() => _channel.subscribe();

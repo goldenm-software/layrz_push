@@ -12,7 +12,6 @@ import 'package:pigeon/pigeon.dart';
     debugGenerators: true,
   ),
 )
-
 /// Host API from Flutter to Native (via platform channels).
 ///
 /// Provides the primary interface for managing Firebase Cloud Messaging (FCM)
@@ -27,11 +26,18 @@ abstract class LayrzPushPlatformChannel {
   /// its own credentials object (Android reads [PushCredentials.android], iOS reads
   /// [PushCredentials.ios]) and ignores the other.
   ///
-  /// If a Firebase app is already configured on the native side, it is deleted and
-  /// re-initialized with the new credentials. This ensures the app stays connected
-  /// to the correct FCM backend for the current tenant.
+  /// **Idempotency**: If the incoming credentials match the previously stored credentials
+  /// (all fields: apiKey, appId, projectId, messagingSenderId, storageBucket) and a
+  /// Firebase app is already initialized, this method returns immediately without deleting
+  /// or re-initializing Firebase. This prevents unnecessary FCM registration-token invalidation
+  /// and avoids GMS/APNs re-registration delays, which is critical for apps that call
+  /// [setCredentials] at every boot.
   ///
-  /// Returns `true` if credentials were successfully applied, `false` otherwise.
+  /// **Multi-tenant hot-swap**: When credentials DIFFER, the existing Firebase app is deleted
+  /// and re-initialized with the new credentials, exactly as before. This ensures the app stays
+  /// connected to the correct FCM backend for the current tenant.
+  ///
+  /// Returns `true` if credentials were successfully applied or remained unchanged, `false` otherwise.
   @async
   bool setCredentials({required PushCredentials credentials});
 
@@ -50,6 +56,19 @@ abstract class LayrzPushPlatformChannel {
   /// Returns `true` if the device ID was successfully persisted, `false` otherwise.
   @async
   bool setDeviceId({required String deviceId});
+
+  /// Retrieves the persisted Layrz device ID from secure storage.
+  ///
+  /// On Android, the device ID is decrypted from AES-GCM-encrypted
+  /// SharedPreferences (backed by Android Keystore). On iOS, it is retrieved
+  /// from Keychain.
+  ///
+  /// Returns the device ID string if it was previously persisted via [setDeviceId].
+  /// Returns null if no device ID has been set, if decryption fails (e.g., Android
+  /// Auto Backup restored prefs on a new install without the Keystore key), or if
+  /// the Keychain item is unavailable (e.g., on a different iOS device after backup).
+  @async
+  String? getDeviceId();
 
   /// Subscribes to the `device_{deviceId}` FCM topic.
   ///
@@ -129,10 +148,7 @@ class PushCredentials {
   /// Firebase credentials for iOS, extracted from `GoogleService-Info.plist`.
   final IosPushCredentials? ios;
 
-  const PushCredentials({
-    this.android,
-    this.ios,
-  });
+  const PushCredentials({this.android, this.ios});
 }
 
 /// Firebase credentials for Android, extracted from `google-services.json`.
@@ -254,9 +270,5 @@ class PushNotification {
   /// if no data was provided.
   final Map<String, String> data;
 
-  const PushNotification({
-    this.title,
-    this.body,
-    this.data = const {},
-  });
+  const PushNotification({this.title, this.body, this.data = const {}});
 }

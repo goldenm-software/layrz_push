@@ -532,6 +532,17 @@ protocol LayrzPushPlatformChannel {
   ///
   /// Returns `true` if the device ID was successfully persisted, `false` otherwise.
   func setDeviceId(deviceId: String, completion: @escaping (Result<Bool, Error>) -> Void)
+  /// Retrieves the persisted Layrz device ID from secure storage.
+  ///
+  /// On Android, the device ID is decrypted from AES-GCM-encrypted
+  /// SharedPreferences (backed by Android Keystore). On iOS, it is retrieved
+  /// from Keychain.
+  ///
+  /// Returns the device ID string if it was previously persisted via [setDeviceId].
+  /// Returns null if no device ID has been set, if decryption fails (e.g., Android
+  /// Auto Backup restored prefs on a new install without the Keystore key), or if
+  /// the Keychain item is unavailable (e.g., on a different iOS device after backup).
+  func getDeviceId(completion: @escaping (Result<String?, Error>) -> Void)
   /// Subscribes to the `device_{deviceId}` FCM topic.
   ///
   /// Requires both [setCredentials] and [setDeviceId] to have been called
@@ -633,6 +644,31 @@ class LayrzPushPlatformChannelSetup {
       }
     } else {
       setDeviceIdChannel.setMessageHandler(nil)
+    }
+    /// Retrieves the persisted Layrz device ID from secure storage.
+    ///
+    /// On Android, the device ID is decrypted from AES-GCM-encrypted
+    /// SharedPreferences (backed by Android Keystore). On iOS, it is retrieved
+    /// from Keychain.
+    ///
+    /// Returns the device ID string if it was previously persisted via [setDeviceId].
+    /// Returns null if no device ID has been set, if decryption fails (e.g., Android
+    /// Auto Backup restored prefs on a new install without the Keystore key), or if
+    /// the Keychain item is unavailable (e.g., on a different iOS device after backup).
+    let getDeviceIdChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.layrz_push.LayrzPushPlatformChannel.getDeviceId\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getDeviceIdChannel.setMessageHandler { _, reply in
+        api.getDeviceId { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getDeviceIdChannel.setMessageHandler(nil)
     }
     /// Subscribes to the `device_{deviceId}` FCM topic.
     ///

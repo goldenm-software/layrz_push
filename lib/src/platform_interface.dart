@@ -27,7 +27,8 @@ abstract class LayrzPushPlatform {
   /// Subclasses must return a stream that emits [PushNotification] objects
   /// when notifications arrive in the foreground, and never emits when the
   /// app is in the background or terminated.
-  Stream<PushNotification> get onPush => throw UnimplementedError('onPush has not been implemented.');
+  Stream<PushNotification> get onPush =>
+      throw UnimplementedError('onPush has not been implemented.');
 
   /// Injects (or replaces) the Firebase credentials at runtime.
   ///
@@ -44,22 +45,32 @@ abstract class LayrzPushPlatform {
   Future<bool> setDeviceId({required String deviceId}) =>
       throw UnimplementedError('setDeviceId() has not been implemented.');
 
+  /// Retrieves the persisted Layrz device ID from secure storage.
+  ///
+  /// Subclasses must implement retrieval from secure storage (Keystore/Keychain).
+  /// Returns null if the device ID has never been set or if retrieval fails.
+  Future<String?> getDeviceId() =>
+      throw UnimplementedError('getDeviceId() has not been implemented.');
+
   /// Subscribes to the `device_{deviceId}` FCM topic.
   ///
   /// Subclasses must implement FCM subscription logic, handling potential
   /// first-time slowness (FCM token fetch) and tracking subscriptions locally.
-  Future<bool> subscribe() => throw UnimplementedError('subscribe() has not been implemented.');
+  Future<bool> subscribe() =>
+      throw UnimplementedError('subscribe() has not been implemented.');
 
   /// Unsubscribes from the `device_{deviceId}` FCM topic.
   ///
   /// Subclasses must implement FCM unsubscription logic and update the local
   /// subscription tracking list.
-  Future<bool> unsubscribe() => throw UnimplementedError('unsubscribe() has not been implemented.');
+  Future<bool> unsubscribe() =>
+      throw UnimplementedError('unsubscribe() has not been implemented.');
 
   /// Returns the list of currently subscribed FCM topics.
   ///
   /// Subclasses must return the locally-tracked list of subscribed topics.
   /// FCM does not provide a native API for this, so implementations must
   /// maintain their own list.
-  Future<List<String>> getSubscriptions() => throw UnimplementedError('getSubscriptions() has not been implemented.');
+  Future<List<String>> getSubscriptions() =>
+      throw UnimplementedError('getSubscriptions() has not been implemented.');
 }

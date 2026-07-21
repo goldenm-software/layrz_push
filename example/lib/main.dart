@@ -112,7 +112,8 @@ class _HomeViewState extends State<HomeView> {
 
     try {
       final secrets = jsonDecode(raw) as Map<String, dynamic>;
-      final platform = secrets[_isIos ? 'ios' : 'android'] as Map<String, dynamic>?;
+      final platform =
+          secrets[_isIos ? 'ios' : 'android'] as Map<String, dynamic>?;
 
       setState(() {
         _deviceId = secrets['deviceId'] as String? ?? '';
@@ -144,7 +145,9 @@ class _HomeViewState extends State<HomeView> {
       ThemedSnackbar(
         message: '$action: ${result ? 'success' : 'failed'}',
         color: result ? Colors.green : Colors.red,
-        icon: result ? LayrzIcons.solarOutlineCheckSquare : LayrzIcons.solarOutlineCloseSquare,
+        icon: result
+            ? LayrzIcons.solarOutlineCheckSquare
+            : LayrzIcons.solarOutlineCloseSquare,
       ),
     );
   }
@@ -250,7 +253,9 @@ class _HomeViewState extends State<HomeView> {
           _section(context, 'Notification permission'),
           Row(
             children: [
-              Expanded(child: Text('Status: ${_permissionStatus?.name ?? 'unknown'}')),
+              Expanded(
+                child: Text('Status: ${_permissionStatus?.name ?? 'unknown'}'),
+              ),
               ThemedButton(
                 labelText: 'Request',
                 icon: LayrzIcons.solarOutlineInfoCircle,
@@ -264,7 +269,10 @@ class _HomeViewState extends State<HomeView> {
           if (_secretsLoaded)
             const Padding(
               padding: EdgeInsets.only(bottom: 8),
-              child: Text('Loaded from assets/secrets.json', style: TextStyle(fontStyle: FontStyle.italic)),
+              child: Text(
+                'Loaded from assets/secrets.json',
+                style: TextStyle(fontStyle: FontStyle.italic),
+              ),
             ),
           ThemedTextInput(
             labelText: 'API Key',
@@ -310,7 +318,8 @@ class _HomeViewState extends State<HomeView> {
                 labelText: 'Set credentials',
                 onTap: _setCredentials,
                 isLoading: _busyAction == 'setCredentials',
-                isDisabled: _busyAction != null && _busyAction != 'setCredentials',
+                isDisabled:
+                    _busyAction != null && _busyAction != 'setCredentials',
               ),
               ThemedButton(
                 labelText: 'Set device ID',
@@ -334,22 +343,28 @@ class _HomeViewState extends State<HomeView> {
                 labelText: 'Get subscriptions',
                 onTap: _getSubscriptions,
                 isLoading: _busyAction == 'getSubscriptions',
-                isDisabled: _busyAction != null && _busyAction != 'getSubscriptions',
+                isDisabled:
+                    _busyAction != null && _busyAction != 'getSubscriptions',
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Text('Subscribed topics: ${_topics.isEmpty ? 'none' : _topics.join(', ')}'),
+          Text(
+            'Subscribed topics: ${_topics.isEmpty ? 'none' : _topics.join(', ')}',
+          ),
           const Divider(height: 32),
           // This section only shows notifications received while the app was in foreground.
           // Notifications arriving in the background or when the app is killed are
           // displayed by the system directly and do not appear here.
           _section(context, 'Received notifications (foreground)'),
-          if (_notifications.isEmpty) const Padding(padding: EdgeInsets.all(8), child: Text('None yet')),
+          if (_notifications.isEmpty)
+            const Padding(padding: EdgeInsets.all(8), child: Text('None yet')),
           for (final notification in _notifications)
             ListTile(
               title: Text(notification.title ?? 'No title'),
-              subtitle: Text('${notification.body ?? 'No body'}\n${notification.data}'),
+              subtitle: Text(
+                '${notification.body ?? 'No body'}\n${notification.data}',
+              ),
               isThreeLine: true,
             ),
         ],
