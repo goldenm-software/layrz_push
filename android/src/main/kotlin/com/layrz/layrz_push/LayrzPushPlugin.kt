@@ -219,9 +219,8 @@ class LayrzPushPlugin :
    *
    * @return true if FirebaseApp is initialized, false otherwise.
    */
-  private fun isFirebaseInitialized(): Boolean {
-    return runCatching { FirebaseApp.getInstance() }.isSuccess
-  }
+  private fun isFirebaseInitialized(): Boolean =
+    runCatching { FirebaseApp.getInstance() }.isSuccess
 
   /**
    * Persists an encrypted device ID for topic-based subscription.
@@ -332,7 +331,7 @@ class LayrzPushPlugin :
                 Log.e(
                   TAG,
                   "subscribe(): Failed to subscribe to topic: $topic after ${subscribeElapsed}ms",
-                  it
+                  it,
                 )
               }
               callback(Result.success(false))
@@ -393,7 +392,7 @@ class LayrzPushPlugin :
             Log.e(
               TAG,
               "unsubscribe(): Failed to unsubscribe from topic: $topic after ${elapsed}ms",
-              it
+              it,
             )
           }
           callback(Result.success(false))
